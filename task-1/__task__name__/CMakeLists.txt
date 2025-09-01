@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.12)
+
+set(PROJECT_NAME __task__name__)
+project(${PROJECT_NAME})
+
+set(PROJECT_INCLUDES
+)
+
+set(PROJECT_SOURCES
+)
+
+set(ALL_SOURCES
+    ${PROJECT_INCLUDES}
+    ${PROJECT_SOURCES}
+)
+
+add_library(${PROJECT_NAME} STATIC ${ALL_SOURCES})
+
+target_include_directories(${PROJECT_NAME} PUBLIC includes)
+target_include_directories(${PROJECT_NAME} PRIVATE src)
