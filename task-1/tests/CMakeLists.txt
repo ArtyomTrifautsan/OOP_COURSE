@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(PROJECT_NAME #==ДОПИСАТЬ НАЗВАНИЕ ПРОЕКТА==))
+set(PROJECT_NAME tests_serialize_deserialize)
 project(${PROJECT_NAME})
 
 ADD_SUBDIRECTORY(googletest)
@@ -16,6 +16,6 @@ add_executable(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} gtest gmock pthread)
-target_link_libraries(${PROJECT_NAME} #==ДОПИСАТЬ НАЗВАНИЕ ЗАДАЧИ==)
+target_link_libraries(${PROJECT_NAME} serialize_deserialize_lib)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)

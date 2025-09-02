@@ -19,6 +19,6 @@ add_executable(${PROJECT_NAME}
     ${ALL_SOURCES}
 )
 
-target_link_libraries(${PROJECT_NAME} #==ДОПИСАТЬ НАЗВАНИЕ ЗАДАЧИ==)
+target_link_libraries(${PROJECT_NAME} serialize_deserialize_lib)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
