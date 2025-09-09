@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(PROJECT_NAME serialize_deserialize_lib)
+set(PROJECT_NAME serialize_lib)
 project(${PROJECT_NAME})
 
 set(PROJECT_INCLUDES
