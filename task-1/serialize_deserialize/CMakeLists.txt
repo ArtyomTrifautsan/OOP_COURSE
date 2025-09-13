@@ -20,3 +20,5 @@ add_library(${PROJECT_NAME} STATIC ${ALL_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC includes)
 target_include_directories(${PROJECT_NAME} PRIVATE src)
+
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
