@@ -8,8 +8,9 @@ enable_testing()
 
 set(PROJECT_SOURCES
     src/test_simple_types.cpp
-    src/test_vector.cpp
     src/test_string.cpp
+    src/test_vector.cpp
+    src/test_associative_containers.cpp
 )
 
 add_executable(${PROJECT_NAME}
