@@ -7,6 +7,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <unordered_map>
 
 #include <serialize.hpp>
 
@@ -22,26 +23,6 @@ void print_bytes(const T& obj)
     }
     std::cout << std::dec << std::endl;
 }
-
-// template <>
-// void print_bytes(const std::string& str)
-// {
-//     const uint32_t len = static_cast<uint32_t>(str.size());
-//     const uint8_t* len_ptr = reinterpret_cast<const uint8_t*>(&len);
-//     std::cout << "Bytes (size: " << sizeof(len) + len << "): ";
-//     for (size_t i = 0; i < sizeof(len); ++i) {
-//         std::cout << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-//                   << static_cast<int>(len_ptr[i]) << " ";
-//     }
-
-//     const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(str.data());
-//     for (size_t i = 0; i < len; ++i) {
-//         std::cout << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-//                   << static_cast<int>(data_ptr[i]) << " ";
-//     }
-
-//     std::cout << std::dec << std::endl;
-// }
 
 
 int main(int argc, char const *argv[])
@@ -64,6 +45,12 @@ int main(int argc, char const *argv[])
     my_set.insert(-1.0);
     my_set.insert(-2.0);
     my_set.insert(-3.0);
+    std::unordered_map<std::string, int> my_unordered_map = {
+        {"no_first", -100},
+        {"no_second", -200},
+        {"no_fourth", -400},
+        {"no_seventh", -700},
+    };
 
     std::cout << "===For char[7]: ";
     print_bytes(hello);
@@ -75,6 +62,8 @@ int main(int argc, char const *argv[])
     print_bytes(my_map);
     std::cout << "===For std::set: ";
     print_bytes(my_set);
+    std::cout << "===For std::unordered_map: ";
+    print_bytes(my_unordered_map);
 
     // std::cout << "===For char[7]: ";
     serialize(hello, ofs);
@@ -86,6 +75,8 @@ int main(int argc, char const *argv[])
     serialize(my_map, ofs);
     std::cout << "serialize ===For std::set: ";
     serialize(my_set, ofs);
+    std::cout << "serialize ===For std::unordered_map: ";
+    serialize(my_unordered_map, ofs);
 
     ofs.close();
 
@@ -97,6 +88,7 @@ int main(int argc, char const *argv[])
     std::vector<int> numbers2;
     std::map<std::string, int> my_map2;
     std::set<float> my_set2;
+    std::unordered_map<std::string, int> my_unordered_map2;
 
     deserialize(hello2, ifs);
     deserialize(hello_str_2, ifs);
@@ -105,6 +97,8 @@ int main(int argc, char const *argv[])
     deserialize(my_map2, ifs);
     std::cout << "deserialize ===For std::set: ";
     deserialize(my_set2, ifs);
+    std::cout << "deserialize ===For std::unordered_map: ";
+    deserialize(my_unordered_map2, ifs);
     
     std::cout << "===For char[7]: ";
     print_bytes(hello2);
@@ -116,10 +110,10 @@ int main(int argc, char const *argv[])
     print_bytes(my_map2);
     std::cout << "===For std::set: ";
     print_bytes(my_set2);
+    std::cout << "===For std::unordered_map: ";
+    print_bytes(my_unordered_map2);
 
     ifs.close();
-
-    // if (hello_str == hello_str_2) std::cout << "strings equal!!!" << std::endl;
 
     std::cout << "hello2: ";
     for (auto item : hello2) std::cout << item;
@@ -137,6 +131,10 @@ int main(int argc, char const *argv[])
 
     std::cout << "my_set2: ";
     for (auto item : my_set2) std::cout << " " << item;
+    std::cout << std::endl;
+
+    std::cout << "my_unordered_map2: ";
+    for (auto item : my_unordered_map2) std::cout << " " << item.first << "=" << item.second;
     std::cout << std::endl;
 
     return 0;

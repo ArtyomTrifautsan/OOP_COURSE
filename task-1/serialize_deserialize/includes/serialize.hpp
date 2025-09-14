@@ -7,13 +7,10 @@
 #include <type_traits>
 #include <concepts>
 
-#include <vector>
 #include <string>
-#include <array>
-// #include
 
 
-
+//======================================CONCEPTS======================================
 template<typename T>
 concept String = std::is_same_v<T, std::string>;
 
@@ -48,7 +45,6 @@ concept AssociativeContainer = Container<ContainerType> && requires(ContainerTyp
 {
     typename ContainerType::key_type;
     { c.insert(v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
-    // typename ContainerType::mapped_type;
 };
 
 template <typename ContainerType>
@@ -61,7 +57,9 @@ concept MapContainer = AssociativeContainer<ContainerType> && requires(Container
 };
 
 
-// ===DECLARATIONS===
+
+
+//===========================SERIALIZE/DESERIALIZE DECLARATIONS===========================
 
 template <typename T>
 void serialize(const T& obj, std::ostream& os);
@@ -70,22 +68,9 @@ template <typename T>
 void deserialize(T& obj, std::istream& is);
 
 
-// template <typename T>
-// void serialize(const std::vector<T>& vector, std::ostream& os);
-
-// template <typename T>
-// void deserialize(std::vector<T>& vector, std::istream& is);
-
-// template <typename ContainerType>
-// requires SequentialContainer<ContainerType>
-// void serialize(const ContainerType& c, std::ostream& os);
-
-// template <typename ContainerType>
-// requires SequentialContainer<ContainerType>
-// void deserialize(ContainerType& c, std::istream& is);
 
 
-// ===IMPLEMENTATIOS===
+//==================ALL SERIALIZER/DESERIALIZER TEMPLATES IMPLEMETATIONS==================
 
 template <typename T>
 struct serializer
@@ -151,40 +136,46 @@ struct deserializer<std::string>
         // Read the len of the string
         uint32_t len = 0;
         deserialize(len, is);
-        // std::cout << "len == " << len << std::endl;
 
         // Read the characters
         str.clear();
-        str.resize(len); // узнать что вообще происходит тут
+        str.resize(len);
         std::istream_iterator<char> ii(is);
         std::copy_n(ii, static_cast<size_t>(len), str.data());
     }
 };
 
 
-// template <typename T1, typename T2>
-// struct serializer<std::pair<T1, T2>>
-// {
-//     static void apply(const std::pair<T1, T2>& pair, std::ostream& os)
-//     {
-//         // std::cout << "Using pair serializer" << std::endl;
+/*
+I try to make serializer and deserializer of std::pair that uses for reading and 
+writing std::map keys and values. But this solution seemed difficult for me. So I 
+realized separate serializer and deserializer for std::map using concept MapContainer
 
-//         serialize(pair.first, os);
-//         serialize(pair.second, os);
-//     }
-// };
 
-// template <typename T1, typename T2>
-// struct deserializer<std::pair<T1, T2>>
-// {
-//     static void apply(std::pair<T1, T2>& pair, std::istream& is)
-//     {
-//         // std::cout << "Using pair deserializer" << std::endl;
+template <typename T1, typename T2>
+struct serializer<std::pair<T1, T2>>
+{
+    static void apply(const std::pair<T1, T2>& pair, std::ostream& os)
+    {
+        // std::cout << "Using pair serializer" << std::endl;
 
-//         deserialize(pair.first, is);
-//         deserialize(pair.second, is);
-//     }
-// };
+        serialize(pair.first, os);
+        serialize(pair.second, os);
+    }
+};
+
+template <typename T1, typename T2>
+struct deserializer<std::pair<T1, T2>>
+{
+    static void apply(std::pair<T1, T2>& pair, std::istream& is)
+    {
+        // std::cout << "Using pair deserializer" << std::endl;
+
+        deserialize(pair.first, is);
+        deserialize(pair.second, is);
+    }
+};
+*/
 
 
 // ===Sequential and associative containers===
@@ -199,7 +190,7 @@ struct serializer<ContainerType>
         const uint32_t len = static_cast<uint32_t>(c.size());
         serialize(len, os);
 
-        // Write items of vector
+        // Write objects
         for (const typename ContainerType::value_type& obj : c)
             serialize(obj, os);
     }
@@ -214,7 +205,7 @@ struct deserializer<ContainerType>
 
         c.clear();
 
-        // Read the len of array
+        // Read the len of container
         uint32_t len = 0;
         deserialize(len, is);
 
@@ -259,11 +250,11 @@ struct serializer<ContainerType>
     {
         std::cout << "Using serializer for map container" << std::endl;
 
-        // Write the len of the container
+        // Write the len of container
         const uint32_t len = static_cast<uint32_t>(c.size());
         serialize(len, os);
 
-        // Write items of vector
+        // Write pairs of key/value
         for (const typename ContainerType::value_type& obj : c)
         {
             serialize(obj.first, os);
@@ -285,7 +276,7 @@ struct deserializer<ContainerType>
         uint32_t len = 0;
         deserialize(len, is);
 
-        // Read objects
+        // Read pairs of key/value
         for (uint32_t i = 0; i < len; i++)
         {
             typename ContainerType::key_type key{};
@@ -298,50 +289,9 @@ struct deserializer<ContainerType>
 };
 
 
-/*
-//===Supporting std::vector
-template <typename T>
-struct vector_serializer
-{
-    static void apply(const std::vector<T>& vector, std::ostream& os)
-    {
-        std::cout << "Using vector serializer" << std::endl;
 
-        // Write the len of the string
-        const uint32_t len = static_cast<uint32_t>(vector.size());
-        serialize(len, os);
 
-        // Write items of vector
-        // std::ostream_iterator<uint8_t> oi(os, "");
-        for (const T& obj : vector)
-            serialize(obj, os);
-    }
-};
-
-template <typename T>
-struct vector_deserializer
-{
-    static void apply(std::vector<T>& vector, std::istream& is)
-    {
-        std::cout << "Using vector deserializer" << std::endl;
-
-        vector.clear();
-
-        // Read the len of array
-        uint32_t len = 0;
-        deserialize(len, is);
-
-        // Read objects
-        for (uint32_t i = 0; i < len; i++)
-        {
-            T obj{};
-            deserialize(obj, is);
-            vector.push_back(obj);
-        }
-    }
-};
-*/
-
+//========================SERIALIZE/DESERIALIZE IMPLEMENTSTIONS===========================
 
 template <typename T>
 void serialize(const T& obj, std::ostream& os)
@@ -354,31 +304,3 @@ void deserialize(T& obj, std::istream& is)
 {
     deserializer<T>::apply(obj, is);
 }
-
-
-// template <typename T>
-// void serialize(const std::vector<T>& vector, std::ostream& os)
-// {
-//     vector_serializer<T>::apply(vector, os);
-// }
-
-// template <typename T>
-// void deserialize(std::vector<T>& vector, std::istream& is)
-// {
-//     vector_deserializer<T>::apply(vector, is);
-// }
-
-
-// template <typename ContainerType>
-// requires SequentialContainer<ContainerType>
-// void serialize(const ContainerType& c, std::ostream& os)
-// {
-//     sequential_container_serializer<ContainerType>::apply(c, os);
-// }
-
-// template <typename ContainerType>
-// requires SequentialContainer<ContainerType>
-// void deserialize(ContainerType& c, std::istream& is)
-// {
-//     sequential_container_deserializer<ContainerType>::apply(c, is);
-// }
