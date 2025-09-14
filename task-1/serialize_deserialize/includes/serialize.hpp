@@ -19,7 +19,7 @@ concept String = std::is_same_v<T, std::string>;
 
 
 template <typename ContainerType>
-concept Container = !String<ContainerType> && requires(ContainerType& a)
+concept Container = !String<ContainerType> && requires(ContainerType& c)
 {
     typename ContainerType::value_type;
     typename ContainerType::reference;
@@ -28,29 +28,37 @@ concept Container = !String<ContainerType> && requires(ContainerType& a)
     typename ContainerType::const_iterator;
     typename ContainerType::size_type;
 
-    { a.begin() } -> std::same_as<typename ContainerType::iterator>;
-    { a.end() } -> std::same_as<typename ContainerType::iterator>;
-    { a.cbegin() } -> std::same_as<typename ContainerType::const_iterator>;
-    { a.cend() } -> std::same_as<typename ContainerType::const_iterator>;
-    { a.size() } -> std::same_as<typename ContainerType::size_type>;
+    { c.begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.end() } -> std::same_as<typename ContainerType::iterator>;
+    { c.cbegin() } -> std::same_as<typename ContainerType::const_iterator>;
+    { c.cend() } -> std::same_as<typename ContainerType::const_iterator>;
+    { c.size() } -> std::same_as<typename ContainerType::size_type>;
 
-    { a.clear() };
+    { c.clear() };
 };
 
 template <typename ContainerType>
-concept SequentialContainer = Container<ContainerType> && requires(ContainerType c, typename ContainerType::value_type v) 
+concept SequentialContainer = Container<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v) 
 {
     c.push_back(v);
 };
 
 template <typename ContainerType>
-concept AssociativeContainer = Container<ContainerType> && requires()
+concept AssociativeContainer = Container<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v)
 {
     typename ContainerType::key_type;
+    { c.insert(v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
+    // typename ContainerType::mapped_type;
 };
 
+template <typename ContainerType>
+concept SequentialOrAssociativeContainer = SequentialContainer<ContainerType> || AssociativeContainer<ContainerType>;
 
-
+template <typename ContainerType>
+concept MapContainer = AssociativeContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::key_type k, typename ContainerType::mapped_type v)
+{
+    { c.emplace(k, v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
+};
 
 
 // ===DECLARATIONS===
@@ -154,40 +162,40 @@ struct deserializer<std::string>
 };
 
 
-template <typename T1, typename T2>
-struct serializer<std::pair<T1, T2>>
-{
-    static void apply(const std::pair<T1, T2>& pair, std::ostream& os)
-    {
-        // std::cout << "Using pair serializer" << std::endl;
+// template <typename T1, typename T2>
+// struct serializer<std::pair<T1, T2>>
+// {
+//     static void apply(const std::pair<T1, T2>& pair, std::ostream& os)
+//     {
+//         // std::cout << "Using pair serializer" << std::endl;
 
-        serialize(pair.first, os);
-        serialize(pair.second, os);
-    }
-};
+//         serialize(pair.first, os);
+//         serialize(pair.second, os);
+//     }
+// };
 
-template <typename T1, typename T2>
-struct deserializer<std::pair<T1, T2>>
-{
-    static void apply(std::pair<T1, T2>& pair, std::istream& is)
-    {
-        // std::cout << "Using pair deserializer" << std::endl;
+// template <typename T1, typename T2>
+// struct deserializer<std::pair<T1, T2>>
+// {
+//     static void apply(std::pair<T1, T2>& pair, std::istream& is)
+//     {
+//         // std::cout << "Using pair deserializer" << std::endl;
 
-        deserialize(pair.first, is);
-        deserialize(pair.second, is);
-    }
-};
+//         deserialize(pair.first, is);
+//         deserialize(pair.second, is);
+//     }
+// };
 
 
-// ===Sequential containers===
-template <SequentialContainer ContainerType>
+// ===Sequential and associative containers===
+template <SequentialOrAssociativeContainer ContainerType>
 struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        // std::cout << "Using serializer for sequential container" << std::endl;
+        std::cout << "Using serializer for sequential or associative container" << std::endl;
 
-        // Write the len of the string
+        // Write the len of the container
         const uint32_t len = static_cast<uint32_t>(c.size());
         serialize(len, os);
 
@@ -202,7 +210,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        // std::cout << "Using deserializer for sequential container" << std::endl;
+        std::cout << "Using deserializer for sequential container" << std::endl;
 
         c.clear();
 
@@ -216,6 +224,75 @@ struct deserializer<ContainerType>
             typename ContainerType::value_type obj{};
             deserialize(obj, is);
             c.push_back(obj);
+        }
+    }
+};
+
+template <AssociativeContainer ContainerType>
+struct deserializer<ContainerType>
+{
+    static void apply(ContainerType& c, std::istream& is)
+    {
+        std::cout << "Using deserializer for associative container" << std::endl;
+
+        c.clear();
+
+        // Read the len of container
+        uint32_t len = 0;
+        deserialize(len, is);
+
+        // Read objects
+        for (uint32_t i = 0; i < len; i++)
+        {
+            typename ContainerType::value_type obj{};
+            deserialize(obj, is);
+            c.insert(obj);
+        }
+    }
+};
+
+
+template <MapContainer ContainerType>
+struct serializer<ContainerType>
+{
+    static void apply(const ContainerType& c, std::ostream& os)
+    {
+        std::cout << "Using serializer for map container" << std::endl;
+
+        // Write the len of the container
+        const uint32_t len = static_cast<uint32_t>(c.size());
+        serialize(len, os);
+
+        // Write items of vector
+        for (const typename ContainerType::value_type& obj : c)
+        {
+            serialize(obj.first, os);
+            serialize(obj.second, os);
+        }
+    }
+};
+
+template <MapContainer ContainerType>
+struct deserializer<ContainerType>
+{
+    static void apply(ContainerType& c, std::istream& is)
+    {
+        std::cout << "Using deserializer for map container" << std::endl;
+
+        c.clear();
+
+        // Read the len of container
+        uint32_t len = 0;
+        deserialize(len, is);
+
+        // Read objects
+        for (uint32_t i = 0; i < len; i++)
+        {
+            typename ContainerType::key_type key{};
+            typename ContainerType::mapped_type value{};
+            deserialize(key, is);
+            deserialize(value, is);
+            c.emplace(key, value);
         }
     }
 };

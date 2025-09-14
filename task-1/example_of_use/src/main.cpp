@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <vector>
 #include <list>
+#include <map>
+#include <set>
 
 #include <serialize.hpp>
 
@@ -49,6 +51,19 @@ int main(int argc, char const *argv[])
     char hello[7] = "Hello!";
     std::string hello_str = "hello";
     std::vector<int> numbers = {1, 2, 3, 5, 4};
+    std::map<std::string, int> my_map = {
+        {"first", 100},
+        {"second", 200},
+        {"fourth", 400},
+        {"seventh", 700},
+    };
+    std::set<float> my_set;
+    my_set.insert(1.0);
+    my_set.insert(2.0);
+    my_set.insert(3.0);
+    my_set.insert(-1.0);
+    my_set.insert(-2.0);
+    my_set.insert(-3.0);
 
     std::cout << "===For char[7]: ";
     print_bytes(hello);
@@ -56,6 +71,10 @@ int main(int argc, char const *argv[])
     print_bytes(hello_str);
     std::cout << "===For std::vector: ";
     print_bytes(numbers);
+    std::cout << "===For std::map: ";
+    print_bytes(my_map);
+    std::cout << "===For std::set: ";
+    print_bytes(my_set);
 
     // std::cout << "===For char[7]: ";
     serialize(hello, ofs);
@@ -63,6 +82,10 @@ int main(int argc, char const *argv[])
     serialize(hello_str, ofs);
     // std::cout << "===For std::vector: ";
     serialize(numbers, ofs);
+    std::cout << "serialize ===For std::map: ";
+    serialize(my_map, ofs);
+    std::cout << "serialize ===For std::set: ";
+    serialize(my_set, ofs);
 
     ofs.close();
 
@@ -72,10 +95,16 @@ int main(int argc, char const *argv[])
     char hello2[7];
     std::string hello_str_2 = "1";
     std::vector<int> numbers2;
+    std::map<std::string, int> my_map2;
+    std::set<float> my_set2;
 
     deserialize(hello2, ifs);
     deserialize(hello_str_2, ifs);
     deserialize(numbers2, ifs);
+    std::cout << "deserialize ===For std::map: ";
+    deserialize(my_map2, ifs);
+    std::cout << "deserialize ===For std::set: ";
+    deserialize(my_set2, ifs);
     
     std::cout << "===For char[7]: ";
     print_bytes(hello2);
@@ -83,6 +112,10 @@ int main(int argc, char const *argv[])
     print_bytes(hello_str_2);
     std::cout << "===For std::vector: ";
     print_bytes(numbers2);
+    std::cout << "===For std::map: ";
+    print_bytes(my_map2);
+    std::cout << "===For std::set: ";
+    print_bytes(my_set2);
 
     ifs.close();
 
@@ -95,12 +128,16 @@ int main(int argc, char const *argv[])
     std::cout << "hello_str_2: " << hello_str_2 << std::endl;
 
     std::cout << "Numbers2: ";
-    for (auto item : numbers2) std::cout << item;
+    for (auto item : numbers2) std::cout << " " << item;
     std::cout << std::endl;
 
-    // std::cout << "List Numbers2: ";
-    // for (auto item : list_numbers2) std::cout << item;
-    // std::cout << std::endl;
+    std::cout << "my_map2: ";
+    for (auto item : my_map2) std::cout << " " << item.first << "=" << item.second;
+    std::cout << std::endl;
+
+    std::cout << "my_set2: ";
+    for (auto item : my_set2) std::cout << " " << item;
+    std::cout << std::endl;
 
     return 0;
 }
