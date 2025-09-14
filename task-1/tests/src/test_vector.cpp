@@ -65,6 +65,6 @@ TEST(TestContainers, VectorBool) {
 }
 
 TEST(TestContainers, VectorString) {
-    std::vector<std::string> vec = {"a", "hello", "world", "C++", "serialization test"};
+    std::vector<std::string> vec = {"", "hello", "world", "C++", "serialization test"};
     test_vector(vec);
 }

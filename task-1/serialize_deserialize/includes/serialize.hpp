@@ -119,10 +119,13 @@ struct serializer<std::string>
         const uint32_t len = static_cast<uint32_t>(str.size());
         serialize(len, os);
 
-        // Write the data of the string
-        std::ostream_iterator<uint8_t> oi(os, "");
-        const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(str.data());
-        std::copy(data_ptr, data_ptr + len, oi);
+        if (len > 0)
+        {
+            // Write the data of the string
+            std::ostream_iterator<uint8_t> oi(os, "");
+            const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(str.data());
+            std::copy(data_ptr, data_ptr + len, oi);
+        }
     }
 };
 
@@ -137,11 +140,14 @@ struct deserializer<std::string>
         uint32_t len = 0;
         deserialize(len, is);
 
-        // Read the characters
-        str.clear();
-        str.resize(len);
-        std::istream_iterator<char> ii(is);
-        std::copy_n(ii, static_cast<size_t>(len), str.data());
+        if (len > 0)
+        {
+            // Read the characters
+            str.clear();
+            str.resize(len);
+            std::istream_iterator<char> ii(is);
+            std::copy_n(ii, static_cast<size_t>(len), str.data());
+        }
     }
 };
 
