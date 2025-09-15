@@ -11,6 +11,7 @@ set(PROJECT_SOURCES
     src/test_string.cpp
     src/test_vector.cpp
     src/test_associative_containers.cpp
+    src/test_my_vector.cpp
 )
 
 add_executable(${PROJECT_NAME}

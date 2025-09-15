@@ -5,6 +5,7 @@ project(${PROJECT_NAME})
 
 set(PROJECT_INCLUDES
     includes/serialize.hpp
+    includes/my_vector.hpp
 )
 
 set(PROJECT_SOURCES

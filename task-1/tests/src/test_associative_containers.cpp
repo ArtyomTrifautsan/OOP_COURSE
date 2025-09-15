@@ -156,7 +156,7 @@ using SuperContainer = std::vector<
     >
 >;
 
-TEST(TestDeepContainers, MultipleMapsWithDifferentKeys) {
+TEST(TestSuperContainers, MultipleMapsWithDifferentKeys) {
     SuperContainer super_container;
 
     // Map 1
