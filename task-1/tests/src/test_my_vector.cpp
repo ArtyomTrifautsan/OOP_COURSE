@@ -112,24 +112,3 @@ TEST(TestMyCustomVector, ReuseAfterClear)
     EXPECT_EQ(restored[0], 10);
     EXPECT_EQ(restored[1], 20);
 }
-
-// TEST(TestMyCustomVector, NoUBWithTrivialTypes)
-// {
-//     MyVector<double> vector;
-//     for (double d = 0.1; d < 1.0; d += 0.1)
-//         vector.push_back(d);
-//     test_my_vector(vector);
-// }
-
-// TEST(TestMyCustomVector, ConceptCheck)
-// {
-//     // Это компилируется только если MyVector<int> удовлетворяет SequentialContainer
-//     static_assert(SequentialContainer<MyVector<int>>, "MyVector<int> must satisfy SequentialContainer concept!");
-//     static_assert(SequentialOrAssociativeContainer<MyVector<int>>, "MyVector<int> must satisfy SequentialOrAssociativeContainer concept!");
-//     static_assert(!MapContainer<MyVector<int>>, "MyVector is not a map!");
-
-//     // Но сами тесты не выполняются — это compile-time проверка.
-//     // Поэтому просто создадим пустой вектор и убедимся, что он компилируется.
-//     MyVector<int> dummy;
-//     test_my_vector(dummy); // гарантирует, что тип "живой"
-// }
