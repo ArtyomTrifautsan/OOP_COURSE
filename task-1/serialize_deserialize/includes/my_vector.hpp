@@ -107,7 +107,7 @@ public:
         if (m_capacity == 0) reserve(1);
         else if (m_size == m_capacity) reserve(m_capacity * 2);
 
-        new (m_data + m_size) T(value);
+        new (m_data + m_size) T(value); // Прочесть что это такое
         ++m_size;
     }
 
@@ -126,7 +126,7 @@ public:
         {
             T* old_data = m_data;
             m_data = new T[new_capacity];
-            std::copy(old_data, old_data + m_size, m_data);
+            std::copy(old_data, old_data + m_size, m_data);     // Прочесть как это работает
             m_capacity = new_capacity;
             delete[] old_data;
         }

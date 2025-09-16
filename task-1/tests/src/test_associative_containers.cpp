@@ -15,7 +15,7 @@
 template <typename T>
 void test_associative_container(const T& value)
 {
-    std::string filename = "test.ser";
+    std::string filename = "test.ser";  // переделать на stringstream
     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
     serialize(value, ofs);
 

@@ -15,10 +15,19 @@ template<typename T>
 concept String = std::is_same_v<T, std::string>;
 
 
+/*
+1) сделать такой же код, только на SFINAE
+2) расширить для forward-list (метод insert_after)
+3) исправить все ошибки в MyVector (в основном проблемы с утечками памяти)
+4) для map использовать сериализацию std::pair (разобраться с const)
+5) немного подправить тесты
+*/
+
+
 template <typename ContainerType>
 concept Container = !String<ContainerType> && requires(ContainerType& c)
 {
-    typename ContainerType::value_type;
+    typename ContainerType::value_type;                  
     typename ContainerType::reference;
     typename ContainerType::const_reference;
     typename ContainerType::iterator;
@@ -55,8 +64,6 @@ concept MapContainer = AssociativeContainer<ContainerType> && requires(Container
 {
     { c.emplace(k, v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
 };
-
-
 
 
 //===========================SERIALIZE/DESERIALIZE DECLARATIONS===========================
@@ -197,7 +204,7 @@ struct serializer<ContainerType>
         serialize(len, os);
 
         // Write objects
-        for (const typename ContainerType::value_type& obj : c)
+        for (const auto& obj : c)
             serialize(obj, os);
     }
 };
