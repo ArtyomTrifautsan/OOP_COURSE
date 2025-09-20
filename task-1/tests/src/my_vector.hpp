@@ -38,6 +38,7 @@ public:
 
     MyVector(MyVector&& other)
     {
+
         m_data = other.m_data;
         other.m_data = nullptr;
 
@@ -145,6 +146,19 @@ public:
     {
         return !(vector1 == vector2);
     }
+
+    void release()
+    {
+        delete[] m_data;
+        m_data = nullptr;
+        m_size = 0;
+        m_capacity = 0;
+    }
+
+    // void swap(MyVector& other)
+    // {
+    //     std::swap()
+    // }
 
 private:
     T* m_data = nullptr;

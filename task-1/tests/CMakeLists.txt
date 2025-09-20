@@ -7,11 +7,12 @@ ADD_SUBDIRECTORY(googletest)
 enable_testing()
 
 set(PROJECT_SOURCES
-    src/test_simple_types.cpp
-    src/test_string.cpp
-    src/test_vector.cpp
-    src/test_associative_containers.cpp
-    src/test_my_vector.cpp
+    src/my_vector.hpp
+    src/test_concept_version/test_simple_types.cpp
+    src/test_concept_version/test_string.cpp
+    src/test_concept_version/test_vector.cpp
+    src/test_concept_version/test_associative_containers.cpp
+    src/test_concept_version/test_my_vector.cpp
 )
 
 add_executable(${PROJECT_NAME}

@@ -4,8 +4,8 @@ set(PROJECT_NAME serialize_lib)
 project(${PROJECT_NAME})
 
 set(PROJECT_INCLUDES
-    includes/serialize.hpp
-    includes/my_vector.hpp
+    includes/serialize_concepts.hpp
+    includes/serialize_sfinae.hpp
 )
 
 set(PROJECT_SOURCES

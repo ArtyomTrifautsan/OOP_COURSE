@@ -1,8 +1,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <serialize.hpp>
-
 
 int main(int argc, char **argv)
 {
