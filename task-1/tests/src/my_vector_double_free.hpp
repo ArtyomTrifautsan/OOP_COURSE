@@ -6,7 +6,7 @@
 
 
 /*
-MyVector - is my custom data structure. I create it for tests.
+A double free error detected in this version of MyVector 
 */
 
 
