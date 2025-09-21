@@ -10,60 +10,77 @@
 #include <string>
 
 
-//======================================CONCEPTS======================================
-template<typename T>
-concept String = std::is_same_v<T, std::string>;
-
-
 /*
 1) сделать такой же код, только на SFINAE
 2) расширить для forward-list (метод insert_after)
-3) исправить все ошибки в MyVector (в основном проблемы с утечками памяти)
+3) исправить все ошибки в MyVector (в основном проблемы с утечками памяти)      +
 4) для map использовать сериализацию std::pair (разобраться с const)
 5) немного подправить тесты
 */
 
 
+//======================================CONCEPTS======================================
+template<typename T>
+concept String = std::is_same_v<T, std::string>;
+
+
 template <typename ContainerType>
-concept Container = !String<ContainerType> && requires(ContainerType& c)
+concept StandartContainer = !String<ContainerType> && requires(ContainerType& c)
 {
-    typename ContainerType::value_type;                  
-    typename ContainerType::reference;
-    typename ContainerType::const_reference;
-    typename ContainerType::iterator;
-    typename ContainerType::const_iterator;
-    typename ContainerType::size_type;
+    // typename ContainerType::value_type;                  
+    // typename ContainerType::reference;
+    // typename ContainerType::const_reference;
+    // typename ContainerType::iterator;
+    // typename ContainerType::const_iterator;
+    // typename ContainerType::size_type;
 
     { c.begin() } -> std::same_as<typename ContainerType::iterator>;
     { c.end() } -> std::same_as<typename ContainerType::iterator>;
-    { c.cbegin() } -> std::same_as<typename ContainerType::const_iterator>;
-    { c.cend() } -> std::same_as<typename ContainerType::const_iterator>;
     { c.size() } -> std::same_as<typename ContainerType::size_type>;
 
     { c.clear() };
 };
 
+
 template <typename ContainerType>
-concept SequentialContainer = Container<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v) 
+concept SequentialContainer = StandartContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v) 
 {
     c.push_back(v);
 };
 
-template <typename ContainerType>
-concept AssociativeContainer = Container<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v)
-{
-    typename ContainerType::key_type;
-    { c.insert(v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
-};
 
 template <typename ContainerType>
-concept SequentialOrAssociativeContainer = SequentialContainer<ContainerType> || AssociativeContainer<ContainerType>;
+concept AssociativeContainer = StandartContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v)
+{
+    typename ContainerType::key_type;
+    { c.insert(v) }; // -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
+};
+
+
+// template <typename ContainerType>
+// concept SequentialOrAssociativeOrForwardlistContainer = SequentialContainer<ContainerType> || AssociativeContainer<ContainerType> || ForwardListContainer<ContainerType>;
+
 
 template <typename ContainerType>
 concept MapContainer = AssociativeContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::key_type k, typename ContainerType::mapped_type v)
 {
-    { c.emplace(k, v) } -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
+    { c.emplace(k, v) }; // -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
 };
+
+
+template <typename ContainerType>
+concept ForwardListContainer = !String<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v, typename ContainerType::iterator it)
+{
+    { c.begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.end() } -> std::same_as<typename ContainerType::iterator>;
+    { c.before_begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.clear() };
+    { c.insert_after(it, v) };
+};
+
+
+
+
 
 
 //===========================SERIALIZE/DESERIALIZE DECLARATIONS===========================
@@ -84,7 +101,7 @@ struct serializer
 {
     static void apply(const T& obj, std::ostream& os)
     {
-        // std::cout << "Using base serializer" << std::endl;
+        std::cout << "Using base serializer" << std::endl;
 
         const uint8_t* ptr = reinterpret_cast<const uint8_t *>(&obj);
 
@@ -99,7 +116,7 @@ struct deserializer
 {
     static void apply(T& val, std::istream& is)
     {
-        // std::cout << "Using base deserializer" << std::endl;
+        std::cout << "Using base deserializer" << std::endl;
 
         uint8_t* ptr = reinterpret_cast<uint8_t*>(&val);
 
@@ -120,7 +137,7 @@ struct serializer<std::string>
 {
     static void apply(const std::string& str, std::ostream& os)
     {
-        // std::cout << "Using string serializer" << std::endl;
+        std::cout << "Using string serializer" << std::endl;
 
         // Write the len of the string
         const uint32_t len = static_cast<uint32_t>(str.size());
@@ -141,7 +158,7 @@ struct deserializer<std::string>
 {
     static void apply(std::string& str, std::istream& is)
     {
-        // std::cout << "Using string deserializer" << std::endl;
+        std::cout << "Using string deserializer" << std::endl;
 
         // Read the len of the string
         uint32_t len = 0;
@@ -192,12 +209,12 @@ struct deserializer<std::pair<T1, T2>>
 
 
 // ===Sequential and associative containers===
-template <SequentialOrAssociativeContainer ContainerType>
+template <StandartContainer ContainerType>
 struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        // std::cout << "Using serializer for sequential or associative container" << std::endl;
+        std::cout << "Using serializer for standart container" << std::endl;
 
         // Write the len of the container
         const uint32_t len = static_cast<uint32_t>(c.size());
@@ -214,7 +231,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        // std::cout << "Using deserializer for sequential container" << std::endl;
+        std::cout << "Using deserializer for sequential container" << std::endl;
 
         c.clear();
 
@@ -237,7 +254,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        // std::cout << "Using deserializer for associative container" << std::endl;
+        std::cout << "Using deserializer for associative container" << std::endl;
 
         c.clear();
 
@@ -261,7 +278,7 @@ struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        // std::cout << "Using serializer for map container" << std::endl;
+        std::cout << "Using serializer for map container" << std::endl;
 
         // Write the len of container
         const uint32_t len = static_cast<uint32_t>(c.size());
@@ -281,7 +298,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        // std::cout << "Using deserializer for map container" << std::endl;
+        std::cout << "Using deserializer for map container" << std::endl;
 
         c.clear();
 
@@ -297,6 +314,53 @@ struct deserializer<ContainerType>
             deserialize(key, is);
             deserialize(value, is);
             c.emplace(key, value);
+        }
+    }
+};
+
+
+template <ForwardListContainer ContainerType>
+struct serializer<ContainerType>
+{
+    static void apply(const ContainerType& c, std::ostream& os)
+    {
+        std::cout << "Using serializer for forward_list container" << std::endl;
+
+        // Write the len of the container
+        uint32_t len = 0;
+        for (const auto& obj : c)
+            ++len;
+        serialize(len, os);
+        std::cout << "Length of worward_list = " << len << std::endl;
+
+        // Write objects
+        for (const auto& obj : c)
+            serialize(obj, os);
+    }
+};
+
+
+template <ForwardListContainer ContainerType>
+struct deserializer<ContainerType>
+{
+    static void apply(ContainerType& c, std::istream& is)
+    {
+        std::cout << "Using deserializer for forward_list container" << std::endl;
+
+        c.clear();
+
+        // Read the len of container
+        uint32_t len = 0;
+        deserialize(len, is);
+
+        // Read objects
+        auto it = c.before_begin();
+        for (uint32_t i = 0; i < len; i++)
+        {
+            typename ContainerType::value_type obj{};
+            deserialize(obj, is);
+            c.insert_after(it, obj);
+            ++it;
         }
     }
 };

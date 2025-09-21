@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <forward_list>
 
 #include <serialize_concepts.hpp>
 
@@ -51,25 +52,28 @@ int main(int argc, char const *argv[])
         {"no_fourth", -400},
         {"no_seventh", -700},
     };
-
-    std::cout << "===For char[7]: ";
-    print_bytes(hello);
-    std::cout << "===For std::string: ";
-    print_bytes(hello_str);
-    std::cout << "===For std::vector: ";
-    print_bytes(numbers);
-    std::cout << "===For std::map: ";
-    print_bytes(my_map);
-    std::cout << "===For std::set: ";
-    print_bytes(my_set);
-    std::cout << "===For std::unordered_map: ";
-    print_bytes(my_unordered_map);
+    std::forward_list<int> forward_list_numbers {1, 2, 5, 4, 3};
 
     // std::cout << "===For char[7]: ";
-    serialize(hello, ofs);
+    // print_bytes(hello);
     // std::cout << "===For std::string: ";
-    serialize(hello_str, ofs);
+    // print_bytes(hello_str);
     // std::cout << "===For std::vector: ";
+    // print_bytes(numbers);
+    // std::cout << "===For std::map: ";
+    // print_bytes(my_map);
+    // std::cout << "===For std::set: ";
+    // print_bytes(my_set);
+    // std::cout << "===For std::unordered_map: ";
+    // print_bytes(my_unordered_map);
+    std::cout << "===For std::forward_list: ";
+    print_bytes(forward_list_numbers);
+
+    std::cout << "serialize ===For char[7]: ";
+    serialize(hello, ofs);
+    std::cout << "serialize ===For std::string: ";
+    serialize(hello_str, ofs);
+    std::cout << "serialize ===For std::vector: ";
     serialize(numbers, ofs);
     std::cout << "serialize ===For std::map: ";
     serialize(my_map, ofs);
@@ -77,6 +81,8 @@ int main(int argc, char const *argv[])
     serialize(my_set, ofs);
     std::cout << "serialize ===For std::unordered_map: ";
     serialize(my_unordered_map, ofs);
+    std::cout << "serialize ===For std::forward_list: ";
+    serialize(forward_list_numbers, ofs);
 
     ofs.close();
 
@@ -89,9 +95,13 @@ int main(int argc, char const *argv[])
     std::map<std::string, int> my_map2;
     std::set<float> my_set2;
     std::unordered_map<std::string, int> my_unordered_map2;
+    std::forward_list<int> forward_list_numbers2;
 
+    std::cout << "deserialize ===For char[7]: ";
     deserialize(hello2, ifs);
+    std::cout << "deserialize ===For std::string: ";
     deserialize(hello_str_2, ifs);
+    std::cout << "deserialize ===For std::vector: ";
     deserialize(numbers2, ifs);
     std::cout << "deserialize ===For std::map: ";
     deserialize(my_map2, ifs);
@@ -99,19 +109,23 @@ int main(int argc, char const *argv[])
     deserialize(my_set2, ifs);
     std::cout << "deserialize ===For std::unordered_map: ";
     deserialize(my_unordered_map2, ifs);
+    std::cout << "deserialize ===For std::forward_list: ";
+    deserialize(forward_list_numbers2, ifs);
     
-    std::cout << "===For char[7]: ";
-    print_bytes(hello2);
-    std::cout << "===For std::string: ";
-    print_bytes(hello_str_2);
-    std::cout << "===For std::vector: ";
-    print_bytes(numbers2);
-    std::cout << "===For std::map: ";
-    print_bytes(my_map2);
-    std::cout << "===For std::set: ";
-    print_bytes(my_set2);
-    std::cout << "===For std::unordered_map: ";
-    print_bytes(my_unordered_map2);
+    // std::cout << "===For char[7]: ";
+    // print_bytes(hello2);
+    // std::cout << "===For std::string: ";
+    // print_bytes(hello_str_2);
+    // std::cout << "===For std::vector: ";
+    // print_bytes(numbers2);
+    // std::cout << "===For std::map: ";
+    // print_bytes(my_map2);
+    // std::cout << "===For std::set: ";
+    // print_bytes(my_set2);
+    // std::cout << "===For std::unordered_map: ";
+    // print_bytes(my_unordered_map2);
+    std::cout << "===For std::forward_list: ";
+    print_bytes(forward_list_numbers2);
 
     ifs.close();
 
@@ -135,6 +149,10 @@ int main(int argc, char const *argv[])
 
     std::cout << "my_unordered_map2: ";
     for (auto item : my_unordered_map2) std::cout << " " << item.first << "=" << item.second;
+    std::cout << std::endl;
+
+    std::cout << "forward_list_numbers2: ";
+    for (auto item : forward_list_numbers2) std::cout << " " << item;
     std::cout << std::endl;
 
     return 0;
