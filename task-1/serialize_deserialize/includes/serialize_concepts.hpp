@@ -12,9 +12,9 @@
 
 /*
 1) сделать такой же код, только на SFINAE
-2) расширить для forward-list (метод insert_after)
+2) расширить для forward-list (метод insert_after)                              +
 3) исправить все ошибки в MyVector (в основном проблемы с утечками памяти)      +
-4) для map использовать сериализацию std::pair (разобраться с const)
+4) для map использовать сериализацию std::pair (разобраться с const)            
 5) немного подправить тесты
 */
 
@@ -180,7 +180,7 @@ struct deserializer<std::string>
 I try to make serializer and deserializer of std::pair that uses for reading and 
 writing std::map keys and values. But this solution seemed difficult for me. So I 
 realized separate serializer and deserializer for std::map using concept MapContainer
-
+*/
 
 template <typename T1, typename T2>
 struct serializer<std::pair<T1, T2>>
@@ -195,17 +195,19 @@ struct serializer<std::pair<T1, T2>>
 };
 
 template <typename T1, typename T2>
-struct deserializer<std::pair<T1, T2>>
+struct deserializer<std::pair<const T1, T2>>
 {
-    static void apply(std::pair<T1, T2>& pair, std::istream& is)
+    static void apply(std::pair<const T1, T2>& pair, std::istream& is)
     {
         // std::cout << "Using pair deserializer" << std::endl;
-
-        deserialize(pair.first, is);
+        T1 volatile_key{};
+        deserialize(volatile_key, is);
+        T1* pair_first_ptr = const_cast<T1*>(&(pair.first));
+        *pair_first_ptr = volatile_key;
         deserialize(pair.second, is);
     }
 };
-*/
+
 
 
 // ===Sequential and associative containers===
@@ -273,50 +275,50 @@ struct deserializer<ContainerType>
 };
 
 
-template <MapContainer ContainerType>
-struct serializer<ContainerType>
-{
-    static void apply(const ContainerType& c, std::ostream& os)
-    {
-        // std::cout << "Using serializer for map container" << std::endl;
+// template <MapContainer ContainerType>
+// struct serializer<ContainerType>
+// {
+//     static void apply(const ContainerType& c, std::ostream& os)
+//     {
+//         // std::cout << "Using serializer for map container" << std::endl;
 
-        // Write the len of container
-        const uint32_t len = static_cast<uint32_t>(c.size());
-        serialize(len, os);
+//         // Write the len of container
+//         const uint32_t len = static_cast<uint32_t>(c.size());
+//         serialize(len, os);
 
-        // Write pairs of key/value
-        for (const typename ContainerType::value_type& obj : c)
-        {
-            serialize(obj.first, os);
-            serialize(obj.second, os);
-        }
-    }
-};
+//         // Write pairs of key/value
+//         for (const typename ContainerType::value_type& obj : c)
+//         {
+//             serialize(obj.first, os);
+//             serialize(obj.second, os);
+//         }
+//     }
+// };
 
-template <MapContainer ContainerType>
-struct deserializer<ContainerType>
-{
-    static void apply(ContainerType& c, std::istream& is)
-    {
-        // std::cout << "Using deserializer for map container" << std::endl;
+// template <MapContainer ContainerType>
+// struct deserializer<ContainerType>
+// {
+//     static void apply(ContainerType& c, std::istream& is)
+//     {
+//         // std::cout << "Using deserializer for map container" << std::endl;
 
-        c.clear();
+//         c.clear();
 
-        // Read the len of container
-        uint32_t len = 0;
-        deserialize(len, is);
+//         // Read the len of container
+//         uint32_t len = 0;
+//         deserialize(len, is);
 
-        // Read pairs of key/value
-        for (uint32_t i = 0; i < len; i++)
-        {
-            typename ContainerType::key_type key{};
-            typename ContainerType::mapped_type value{};
-            deserialize(key, is);
-            deserialize(value, is);
-            c.emplace(key, value);
-        }
-    }
-};
+//         // Read pairs of key/value
+//         for (uint32_t i = 0; i < len; i++)
+//         {
+//             typename ContainerType::key_type key{};
+//             typename ContainerType::mapped_type value{};
+//             deserialize(key, is);
+//             deserialize(value, is);
+//             c.emplace(key, value);
+//         }
+//     }
+// };
 
 
 template <ForwardListContainer ContainerType>
