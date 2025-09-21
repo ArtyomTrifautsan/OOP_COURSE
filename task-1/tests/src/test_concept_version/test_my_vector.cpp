@@ -11,29 +11,24 @@
 template <typename T>
 void test_my_vector(const MyVector<T>& vector)
 {
-    std::cout << "1" << std::endl;
     std::string filename = "test.ser";
     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
-    std::cout << "2" << std::endl;
+
     serialize(vector, ofs);
-    std::cout << "3" << std::endl;
+
     ofs.close();
-    std::cout << "4" << std::endl;
+
     std::ifstream ifs(filename, std::ifstream::in | std::ifstream::binary);
     ifs >> std::noskipws;
-    std::cout << "5" << std::endl;
+
     MyVector<T> deserialized_vector{};
-    std::cout << "6" << std::endl;
+
     deserialize(deserialized_vector, ifs);
-    std::cout << "7" << std::endl;
+
     ifs.close();
     std::remove(filename.c_str());
-    std::cout << "8" << std::endl;
-    EXPECT_EQ(vector, deserialized_vector);
-    std::cout << "9" << std::endl;
 
-    deserialized_vector.~MyVector();
-    vector.~MyVector();
+    EXPECT_EQ(vector, deserialized_vector);
 }
 
 

@@ -2,8 +2,9 @@
 
 #include <algorithm>
 #include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <new>
-
 
 /*
 MyVector - is my custom data structure. I create it for tests.
@@ -24,16 +25,14 @@ public:
 
     MyVector()
     {
-        std::cout << "Call default constructor" << std::endl;
+        std::cout << "Call default constructor for " << this << std::endl;
         set_default();
     }
 
     MyVector(const MyVector& other)
     {
         std::cout << "Call copy constructor" << std::endl;
-        clear();
-        if (other.m_size == 0)
-            return;
+        if (this == &other) return;
 
         clone(other);
     }
@@ -41,6 +40,8 @@ public:
     MyVector(MyVector&& other)
     {
         std::cout << "Call move constructor" << std::endl;
+        if (this == &other) return;
+
         swap(other);
     }
 
@@ -49,10 +50,7 @@ public:
         std::cout << "Call copy assign operator" << std::endl;
         if (this == &other) return *this;
 
-        if (other.m_size == 0)
-            clear();
-        else
-            clone(other);
+        clone(other);
 
         return *this;
     }
@@ -69,8 +67,6 @@ public:
 
     ~MyVector()
     {
-        std::cout << "m_size: " << m_size << std::endl;
-        std::cout << "m_capacity: " << m_capacity << std::endl;
         release();
     }
 
@@ -78,16 +74,11 @@ public:
     iterator end() { return m_data + m_size; }
     const_iterator begin() const { return m_data; }
     const_iterator end() const { return m_data + m_size; }
+    const_iterator cbegin() const { return m_data; }
+    const_iterator cend() const { return m_data + m_size; }
 
     size_type size() const { return m_size; }
     size_type capacity() const { return m_capacity; }
-
-    void clear()
-    {
-        for (size_type i = 0; i < m_size; i++)
-            m_data[i].~T();
-        m_size = 0;
-    }
 
     void push_back(const T& value)
     {
@@ -125,24 +116,23 @@ public:
     {
         if (new_capacity > m_capacity)
         {
-            // T* old_data = m_data;
-            // m_data = new T[new_capacity];
-            // std::copy(old_data, old_data + m_size, m_data);     // Прочесть как это работает
-            // m_capacity = new_capacity;
-            // delete[] old_data;
-
-            T* new_data = static_cast<T*>(operator new(static_cast<int>(new_capacity) * sizeof(T)));
+            T* new_data = static_cast<T*>(operator new(sizeof(T) * new_capacity));
+            for (size_t i = 0; i < m_size; i++)
+                new (new_data + i) T(m_data[i]);
+            if (m_size > 0)
+                std::destroy(m_data, m_data + m_size);
             if (m_data != nullptr)
-            {
-                for (size_t i = 0; i < m_size; i++)
-                    new (new_data + i) T(m_data[i]);
-                for (size_t i = 0; i < m_size; i++)
-                    m_data[i].~T();
                 operator delete(m_data);
-            }
             m_data = new_data;
             m_capacity = new_capacity;
         }
+    }
+
+    void clear()
+    {
+        if (m_size > 0)
+            std::destroy(m_data, m_data + m_size);
+        m_size = 0;
     }
 
     void release()
@@ -162,7 +152,7 @@ public:
 
     void clone(const MyVector& other)
     {
-        clear();
+        release();
 
         if (other.m_size == 0) return;
 
@@ -170,8 +160,6 @@ public:
         m_size = other.m_size;
         for (size_type i = 0; i < other.m_size; i++)
             new(m_data + i) T(other.m_data[i]);
-
-        // std::copy(other.m_data, other.m_data + other.m_size, m_data);
     }
 
     void set_default()
