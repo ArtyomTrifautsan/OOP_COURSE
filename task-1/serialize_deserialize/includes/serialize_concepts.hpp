@@ -101,7 +101,7 @@ struct serializer
 {
     static void apply(const T& obj, std::ostream& os)
     {
-        std::cout << "Using base serializer" << std::endl;
+        // std::cout << "Using base serializer" << std::endl;
 
         const uint8_t* ptr = reinterpret_cast<const uint8_t *>(&obj);
 
@@ -116,7 +116,7 @@ struct deserializer
 {
     static void apply(T& val, std::istream& is)
     {
-        std::cout << "Using base deserializer" << std::endl;
+        // std::cout << "Using base deserializer" << std::endl;
 
         uint8_t* ptr = reinterpret_cast<uint8_t*>(&val);
 
@@ -137,7 +137,7 @@ struct serializer<std::string>
 {
     static void apply(const std::string& str, std::ostream& os)
     {
-        std::cout << "Using string serializer" << std::endl;
+        // std::cout << "Using string serializer" << std::endl;
 
         // Write the len of the string
         const uint32_t len = static_cast<uint32_t>(str.size());
@@ -158,7 +158,7 @@ struct deserializer<std::string>
 {
     static void apply(std::string& str, std::istream& is)
     {
-        std::cout << "Using string deserializer" << std::endl;
+        // std::cout << "Using string deserializer" << std::endl;
 
         // Read the len of the string
         uint32_t len = 0;
@@ -214,7 +214,7 @@ struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        std::cout << "Using serializer for standart container" << std::endl;
+        // std::cout << "Using serializer for standart container" << std::endl;
 
         // Write the len of the container
         const uint32_t len = static_cast<uint32_t>(c.size());
@@ -231,7 +231,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        std::cout << "Using deserializer for sequential container" << std::endl;
+        // std::cout << "Using deserializer for sequential container" << std::endl;
 
         c.clear();
 
@@ -254,7 +254,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        std::cout << "Using deserializer for associative container" << std::endl;
+        // std::cout << "Using deserializer for associative container" << std::endl;
 
         c.clear();
 
@@ -278,7 +278,7 @@ struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        std::cout << "Using serializer for map container" << std::endl;
+        // std::cout << "Using serializer for map container" << std::endl;
 
         // Write the len of container
         const uint32_t len = static_cast<uint32_t>(c.size());
@@ -298,7 +298,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        std::cout << "Using deserializer for map container" << std::endl;
+        // std::cout << "Using deserializer for map container" << std::endl;
 
         c.clear();
 
@@ -324,14 +324,13 @@ struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        std::cout << "Using serializer for forward_list container" << std::endl;
+        // std::cout << "Using serializer for forward_list container" << std::endl;
 
         // Write the len of the container
         uint32_t len = 0;
         for (const auto& obj : c)
             ++len;
         serialize(len, os);
-        std::cout << "Length of worward_list = " << len << std::endl;
 
         // Write objects
         for (const auto& obj : c)
@@ -345,7 +344,7 @@ struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        std::cout << "Using deserializer for forward_list container" << std::endl;
+        // std::cout << "Using deserializer for forward_list container" << std::endl;
 
         c.clear();
 

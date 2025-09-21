@@ -25,13 +25,11 @@ public:
 
     MyVector()
     {
-        std::cout << "Call default constructor for " << this << std::endl;
         set_default();
     }
 
     MyVector(const MyVector& other)
     {
-        std::cout << "Call copy constructor" << std::endl;
         if (this == &other) return;
 
         clone(other);
@@ -39,7 +37,6 @@ public:
 
     MyVector(MyVector&& other)
     {
-        std::cout << "Call move constructor" << std::endl;
         if (this == &other) return;
 
         swap(other);
@@ -47,7 +44,6 @@ public:
 
     MyVector& operator=(const MyVector& other)
     {
-        std::cout << "Call copy assign operator" << std::endl;
         if (this == &other) return *this;
 
         clone(other);
@@ -57,7 +53,6 @@ public:
 
     MyVector& operator=(MyVector&& other)
     {
-        std::cout << "Call move assign operator" << std::endl;
         if (this == &other) return *this;
 
         swap(other);

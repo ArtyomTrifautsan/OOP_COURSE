@@ -13,6 +13,7 @@ set(PROJECT_SOURCES
     src/test_concept_version/test_vector.cpp
     src/test_concept_version/test_associative_containers.cpp
     src/test_concept_version/test_my_vector.cpp
+    src/test_concept_version/test_forward_list.cpp
 )
 
 add_executable(${PROJECT_NAME}
