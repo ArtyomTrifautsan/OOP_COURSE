@@ -9,8 +9,10 @@
 #include <set>
 #include <unordered_map>
 #include <forward_list>
+#include <sstream>
 
-#include <serialize_concepts.hpp>
+// #include <serialize_concepts.hpp>
+#include <serialize_sfinae.hpp>
 
 
 template <typename T>
@@ -26,7 +28,7 @@ void print_bytes(const T& obj)
 }
 
 
-int main(int argc, char const *argv[])
+void use_concepts()
 {
     std::ofstream ofs("test.ser", std::ofstream::out | std::ofstream::binary);
 
@@ -154,6 +156,40 @@ int main(int argc, char const *argv[])
     std::cout << "forward_list_numbers2: ";
     for (auto item : forward_list_numbers2) std::cout << " " << item;
     std::cout << std::endl;
+}
+
+
+void use_sfinae()
+{
+    char c_str[7] = "Hello!";
+    std::string str = "!HelloHello";
+
+    std::ostringstream oss(std::stringstream::binary);
+
+    serialize(c_str, oss);
+    serialize(str, oss);
+
+    std::istringstream iss(oss.str(), std::stringstream::binary);
+    iss >> std::noskipws;
+
+    char c_str2[7];
+    std::string str2;
+
+    deserialize(c_str2, iss);
+    deserialize(str2, iss);
+
+    std::cout << "c_str2: ";
+    for (auto item : c_str2) std::cout << item;
+    std::cout << std::endl;
+    std::cout << "str2: ";
+    for (auto item : str2) std::cout << item;
+    std::cout << std::endl;
+}
+
+
+int main(int argc, char const *argv[])
+{
+    use_concepts();
 
     return 0;
 }
