@@ -61,11 +61,11 @@ concept AssociativeContainer = StandartContainer<ContainerType> && requires(Cont
 // concept SequentialOrAssociativeOrForwardlistContainer = SequentialContainer<ContainerType> || AssociativeContainer<ContainerType> || ForwardListContainer<ContainerType>;
 
 
-template <typename ContainerType>
-concept MapContainer = AssociativeContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::key_type k, typename ContainerType::mapped_type v)
-{
-    { c.emplace(k, v) }; // -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
-};
+// template <typename ContainerType>
+// concept MapContainer = AssociativeContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::key_type k, typename ContainerType::mapped_type v)
+// {
+//     { c.emplace(k, v) }; // -> std::same_as<std::pair<typename ContainerType::iterator, bool>>;
+// };
 
 
 template <typename ContainerType>
