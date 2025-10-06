@@ -1,9 +1,142 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <iostream>
+#include <sstream>
 
-TEST(SomeTest, SomeTest1)
+#include <filter_iterator.hpp>
+
+
+TEST(TestIteratorCategories, TestEmptyInputIterator)
 {
-    int a = 10;
-    EXPECT_EQ(10, a);
+    struct MyPredicate
+    {
+        bool operator()(char a) { return a == 'a'; }
+    };
+    FilterIterator<MyPredicate, std::istream_iterator<char>> filter_iterator{};
+
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+}
+
+
+TEST(TestIteratorCategories, TestInputIterator2)
+{
+    struct MyPredicate
+    {
+        bool operator()(char a) { return a == 'a'; }
+    };
+    std::istringstream iss("bca2ap");
+    MyPredicate my_predicate{};
+    std::istream_iterator<char> i_iter(iss);
+    FilterIterator filter_iterator{my_predicate, i_iter};
+
+    EXPECT_NE(filter_iterator.base(), filter_iterator.end());
+
+    std::ostringstream oss{};
+
+    oss << *filter_iterator;
+    EXPECT_EQ(oss.str(), "a");
+
+    ++filter_iterator;
+    EXPECT_NE(filter_iterator.base(), filter_iterator.end());
+
+    oss << *filter_iterator;
+    EXPECT_EQ(oss.str(), "aa");
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+
+    oss << *filter_iterator;
+    EXPECT_EQ(oss.str(), "aap");
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+
+    oss << *filter_iterator;
+    EXPECT_EQ(oss.str(), "aapp");
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+}
+
+
+TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
+{
+    /*
+    ЭТОТ ТЕСТ НЕ СРАБАТЫВАЕТ. Из-за неккоректного сравнения с итератором end 
+    */
+    struct MyPredicate
+    {
+    public:
+        MyPredicate() : comparing_value{'a'} {}
+        MyPredicate(const char value) : comparing_value{value} {}
+        bool operator()(char a) { return a != comparing_value; }
+    private:
+        char comparing_value{};
+    };
+
+    std::istringstream iss_1("abab n");
+
+    // Default predicate
+    std::istream_iterator<char> i_iter_1(iss_1);
+    FilterIterator<MyPredicate, std::istream_iterator<char>> filter_iterator{i_iter_1};
+
+    EXPECT_NE(filter_iterator.base(), filter_iterator.end());
+
+    std::ostringstream oss_1{};
+
+    oss_1 << *filter_iterator;
+    EXPECT_EQ(oss_1.str(), "b");
+
+    ++filter_iterator;
+    EXPECT_NE(filter_iterator.base(), filter_iterator.end());
+
+    oss_1 << *filter_iterator;
+    EXPECT_EQ(oss_1.str(), "bb");
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+
+    oss_1 << *filter_iterator;
+    EXPECT_EQ(oss_1.str(), "bbn");
+
+    ++filter_iterator;
+    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+
+    oss_1 << *filter_iterator;
+    EXPECT_EQ(oss_1.str(), "bbnn");
+
+    // Non-default predicate
+    std::istringstream iss_2("abab n");
+    MyPredicate my_predicate{'b'};
+    std::istream_iterator<char> i_iter_2(iss_2);
+    FilterIterator filter_iterator_2{my_predicate, i_iter_2};
+
+    EXPECT_NE(filter_iterator_2.base(), filter_iterator_2.end());
+
+    std::ostringstream oss_2{};
+
+    oss_2 << *filter_iterator_2;
+    EXPECT_EQ(oss_2.str(), "a");
+
+    ++filter_iterator_2;
+    EXPECT_NE(filter_iterator_2.base(), filter_iterator_2.end());
+
+    oss_2 << *filter_iterator_2;
+    EXPECT_EQ(oss_2.str(), "aa");
+
+    ++filter_iterator_2;
+    EXPECT_EQ(filter_iterator_2.base(), filter_iterator_2.end());
+
+    oss_2 << *filter_iterator_2;
+    EXPECT_EQ(oss_2.str(), "aan");
+
+    ++filter_iterator_2;
+    EXPECT_EQ(filter_iterator_2.base(), filter_iterator_2.end());
+
+    oss_2 << *filter_iterator_2;
+    EXPECT_EQ(oss_2.str(), "aann");
 }
