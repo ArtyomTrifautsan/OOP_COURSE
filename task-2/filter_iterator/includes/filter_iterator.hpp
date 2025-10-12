@@ -4,106 +4,94 @@
 #include <type_traits>
 
 
-template <typename Predicate, typename Iterator, typename = void>
-class FilterIterator
-{
-public:
-    typedef std::iterator_traits<Iterator>::value_type value_type;
-    typedef std::iterator_traits<Iterator>::reference reference;
-    typedef std::iterator_traits<Iterator>::pointer pointer;
-    typedef std::iterator_traits<Iterator>::difference_type difference_type;
-    typedef std::iterator_traits<Iterator>::iterator_category iterator_category;
+namespace Filter {
 
-    FilterIterator();
-    FilterIterator(Predicate f, Iterator x, Iterator end = Iterator());
-    FilterIterator(Iterator x, Iterator end = Iterator());
-
-    Predicate predicate() const;
-    Iterator end() const;
-    Iterator const& base() const;   // это что?
-    reference operator*() const;
-    FilterIterator& operator++();
-
-private:
-    Predicate m_pred;
-    Iterator m_iter;
-    Iterator m_end;
-};
-
-
-
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::input_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>
-{
-public:
-    typedef std::iterator_traits<Iterator>::value_type value_type;
-    typedef std::iterator_traits<Iterator>::reference reference;
-    typedef std::iterator_traits<Iterator>::pointer pointer;
-    typedef std::iterator_traits<Iterator>::difference_type difference_type;
-    typedef std::iterator_traits<Iterator>::iterator_category iterator_category;
-
-    FilterIterator() = default;
-
-    FilterIterator(Predicate f, Iterator x, Iterator end = Iterator()) : m_pred{f}, m_iter{x}, m_end{end}
+    template <typename Predicate, typename Iterator>
+    class IteratorView
     {
-        go_to_closest_valid_item();
-    }
+    public:
+        using value_type = std::iterator_traits<Iterator>::value_type;
+        using reference = std::iterator_traits<Iterator>::reference;
+        using pointer = std::iterator_traits<Iterator>::pointer;
+        using difference_type = std::iterator_traits<Iterator>::difference_type;
 
-    FilterIterator(Iterator x, Iterator end = Iterator()) : m_pred{}, m_iter{x}, m_end{end} 
+        //  Пока так, а вообще тут должен быть либо forward_iterator, либо input_iterator
+        using iterator_category = std::forward_iterator_tag;
+
+
+        IteratorView() = default;
+
+        IteratorView(Predicate f, Iterator x, Iterator end = Iterator()) : m_predicate{f}, m_iter{x}, m_end{end}
+        {
+            go_to_closest_valid_item();
+        }
+
+        IteratorView(Iterator x, Iterator end = Iterator()) : m_predicate{}, m_iter{x}, m_end{end} 
+        {
+            go_to_closest_valid_item();
+        }
+
+        Predicate predicate() const { return m_predicate; }
+        Iterator end() const { return m_end; }
+        Iterator const& base() const { return m_iter; }
+
+        reference operator*() const { return *m_iter; }
+
+        IteratorView& operator++()
+        {
+            if (m_iter != m_end) ++m_iter;
+            go_to_closest_valid_item();
+            return *this;
+        }
+
+        friend bool operator==(const IteratorView& first, const IteratorView& second)
+        {
+            return (first.m_iter == second.m_iter);
+        }
+
+        friend bool operator!=(const IteratorView& first, const IteratorView& second)
+        {
+            return !(first == second);
+        }
+
+    private:
+        void go_to_closest_valid_item()
+        {
+            while ((!m_predicate(*m_iter)) && (m_iter != m_end))
+                ++m_iter;
+        }
+
+        Predicate m_predicate{};
+        Iterator m_iter{};
+        Iterator m_end{};
+    };
+
+
+    template <typename Predicate, typename Iterator>
+    class Range
     {
-        go_to_closest_valid_item();
-    }
-
-    Predicate predicate() const { return m_pred; }
-    Iterator end() const { return m_end; }
-    Iterator const& base() const { return m_iter; }
-    reference operator*() const { return *m_iter; }
-    FilterIterator& operator++()
-    {
-        m_iter++;
-        go_to_closest_valid_item();
-        return *this;
-    }
-
-    friend bool operator==(const FilterIterator& first, const FilterIterator& second)
-    {
-        return (first.m_iter == second.m_iter);
-    }
-
-    friend bool operator!=(const FilterIterator& first, const FilterIterator& second)
-    {
-        return !(first == second);
-    }
-
-private:
-    void go_to_closest_valid_item()
-    {
-        while ((!m_pred(*m_iter)) && (m_iter != m_end))
-            m_iter++;
-    }
-
-    Predicate m_pred{};
-    Iterator m_iter{};
-    Iterator m_end{};
-};
+    public:
+        // using value_type = std::iterator_traits<Iterator>::value_type;
+        // using IteratorType = typename IteratorView<Predicate, Iterator>
 
 
-/* Должен ли Filter iterator работать с output_iterator?*/
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::output_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>;
+        Range(IteratorView<Predicate, Iterator> begin, IteratorView<Predicate, Iterator> end) :
+            // m_predicate{f}, 
+            m_begin{begin}, 
+            m_end{end}
+        {
+            // Здесь надо доитерироваться до первого item = *m_begin, который f(item) = true.
+            // Ну либо до конца, т.е. до m_begin = m_end
+        }
 
+        // Predicate predicate() const { return m_predicate; }
+        IteratorView<Predicate, Iterator> begin() const { return m_begin; }
+        IteratorView<Predicate, Iterator> end() const { return m_end; }
 
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::forward_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>;
+    private:
+        // Predicate m_predicate{};
+        IteratorView<Predicate, Iterator> m_begin{};
+        IteratorView<Predicate, Iterator> m_end{};
+    };
 
-
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::bidirectional_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>;
-
-
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::random_access_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>;
-
-
-template <typename Predicate, typename Iterator>
-class FilterIterator<Predicate, Iterator, std::enable_if_t<std::is_same_v<std::contiguous_iterator_tag, typename std::iterator_traits<Iterator>::iterator_category>>>;
+}

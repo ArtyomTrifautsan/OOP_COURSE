@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -7,13 +6,13 @@
 #include <filter_iterator.hpp>
 
 
-TEST(TestIteratorCategories, TestEmptyInputIterator)
+TEST(TestFilterIteratorView, TestEmptyInputIterator)
 {
     struct MyPredicate
     {
         bool operator()(char a) { return a == 'a'; }
     };
-    FilterIterator<MyPredicate, std::istream_iterator<char>> filter_iterator{};
+    Filter::IteratorView<MyPredicate, std::istream_iterator<char>> filter_iterator{};
 
     EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
 
@@ -22,7 +21,7 @@ TEST(TestIteratorCategories, TestEmptyInputIterator)
 }
 
 
-TEST(TestIteratorCategories, TestInputIterator2)
+TEST(TestFilterIteratorView, TestInputIterator)
 {
     struct MyPredicate
     {
@@ -31,7 +30,7 @@ TEST(TestIteratorCategories, TestInputIterator2)
     std::istringstream iss("bca2ap");
     MyPredicate my_predicate{};
     std::istream_iterator<char> i_iter(iss);
-    FilterIterator filter_iterator{my_predicate, i_iter};
+    Filter::IteratorView filter_iterator{my_predicate, i_iter};
 
     EXPECT_NE(filter_iterator.base(), filter_iterator.end());
 
@@ -63,11 +62,8 @@ TEST(TestIteratorCategories, TestInputIterator2)
 }
 
 
-TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
+TEST(TestFilterIteratorView, TestInputIteratorWithDefaultPredicate)
 {
-    /*
-    ЭТОТ ТЕСТ НЕ СРАБАТЫВАЕТ. Из-за неккоректного сравнения с итератором end 
-    */
     struct MyPredicate
     {
     public:
@@ -82,7 +78,7 @@ TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
 
     // Default predicate
     std::istream_iterator<char> i_iter_1(iss_1);
-    FilterIterator<MyPredicate, std::istream_iterator<char>> filter_iterator{i_iter_1};
+    Filter::IteratorView<MyPredicate, std::istream_iterator<char>> filter_iterator{i_iter_1};
 
     EXPECT_NE(filter_iterator.base(), filter_iterator.end());
 
@@ -98,7 +94,7 @@ TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
     EXPECT_EQ(oss_1.str(), "bb");
 
     ++filter_iterator;
-    EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
+    EXPECT_NE(filter_iterator.base(), filter_iterator.end());
 
     oss_1 << *filter_iterator;
     EXPECT_EQ(oss_1.str(), "bbn");
@@ -113,7 +109,7 @@ TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
     std::istringstream iss_2("abab n");
     MyPredicate my_predicate{'b'};
     std::istream_iterator<char> i_iter_2(iss_2);
-    FilterIterator filter_iterator_2{my_predicate, i_iter_2};
+    Filter::IteratorView filter_iterator_2{my_predicate, i_iter_2};
 
     EXPECT_NE(filter_iterator_2.base(), filter_iterator_2.end());
 
@@ -129,7 +125,7 @@ TEST(TestIteratorCategories, TestInputIteratorWithDefaultPredicate)
     EXPECT_EQ(oss_2.str(), "aa");
 
     ++filter_iterator_2;
-    EXPECT_EQ(filter_iterator_2.base(), filter_iterator_2.end());
+    EXPECT_NE(filter_iterator_2.base(), filter_iterator_2.end());
 
     oss_2 << *filter_iterator_2;
     EXPECT_EQ(oss_2.str(), "aan");
