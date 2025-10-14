@@ -3,6 +3,17 @@
 #include <iterator>
 #include <type_traits>
 
+/*
+Что не так:
+1) называть архивы с исходниками одинаково
+2) Убрать дефолтное значение Iterator end = Iterator()
+3) Убрать конструктор без предиката в IteratorView
+4) Переименовать IteratorView в Iterator
+5) Проверять все методы в IteratorView
+6) Проверить операторы и конструкторы копирования и присваивания в IteratorView и возможно создать если нужно
+7) Добавить разыминовывание через стрелочку, префиксный и постфиксный ++ (то есть все что нужно для ForwardIterator и LegacyIterator)
+*/
+
 
 namespace Filter {
 
@@ -26,11 +37,13 @@ namespace Filter {
             go_to_closest_valid_item();
         }
 
+        // Убрать
         IteratorView(Iterator x, Iterator end = Iterator()) : m_predicate{}, m_iter{x}, m_end{end} 
         {
             go_to_closest_valid_item();
         }
 
+        // убрать эти 3 метода
         Predicate predicate() const { return m_predicate; }
         Iterator end() const { return m_end; }
         Iterator const& base() const { return m_iter; }
@@ -57,6 +70,7 @@ namespace Filter {
     private:
         void go_to_closest_valid_item()
         {
+            /*поменять местами условия*/
             while ((!m_predicate(*m_iter)) && (m_iter != m_end))
                 ++m_iter;
         }
@@ -71,25 +85,16 @@ namespace Filter {
     class Range
     {
     public:
-        // using value_type = std::iterator_traits<Iterator>::value_type;
-        // using IteratorType = typename IteratorView<Predicate, Iterator>
+        Range(IteratorView<Predicate, Iterator> begin, IteratorView<Predicate, Iterator> end) : m_begin{begin}, m_end{end} {}
+        /*
+        Тут надо передавать обычный Iterator и конструировать IteratorView внутри. И потом вохвращать его/
+        IteratorView создается только с помощью Range!!!
+        */
 
-
-        Range(IteratorView<Predicate, Iterator> begin, IteratorView<Predicate, Iterator> end) :
-            // m_predicate{f}, 
-            m_begin{begin}, 
-            m_end{end}
-        {
-            // Здесь надо доитерироваться до первого item = *m_begin, который f(item) = true.
-            // Ну либо до конца, т.е. до m_begin = m_end
-        }
-
-        // Predicate predicate() const { return m_predicate; }
         IteratorView<Predicate, Iterator> begin() const { return m_begin; }
         IteratorView<Predicate, Iterator> end() const { return m_end; }
 
     private:
-        // Predicate m_predicate{};
         IteratorView<Predicate, Iterator> m_begin{};
         IteratorView<Predicate, Iterator> m_end{};
     };

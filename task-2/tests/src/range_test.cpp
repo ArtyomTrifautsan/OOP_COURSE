@@ -24,7 +24,4 @@ TEST(TestFilterIteratorRange, VectorInt)
     EXPECT_EQ(out[0], 2);
     EXPECT_EQ(out[1], 4);
     EXPECT_EQ(out[2], 6);
-
-    // ++filter_iterator;
-    // EXPECT_EQ(filter_iterator.base(), filter_iterator.end());
 }
