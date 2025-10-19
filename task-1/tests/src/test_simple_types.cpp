@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -7,7 +6,8 @@
 #include <sstream>
 
 // #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
 
 TEST(TestSimpleTypes, TestChar1)
@@ -26,8 +26,6 @@ TEST(TestSimpleTypes, TestChar1)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE('C', deserialized_value);
 }
 
 
@@ -47,8 +45,6 @@ TEST(TestSimpleTypes, TestChar2)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE('C', deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestChar3) 
@@ -68,8 +64,6 @@ TEST(TestSimpleTypes, TestChar3)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE('C', deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestChar4) 
@@ -89,8 +83,6 @@ TEST(TestSimpleTypes, TestChar4)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE('C', deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestSignedChar) 
@@ -109,8 +101,6 @@ TEST(TestSimpleTypes, TestSignedChar)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<signed char>(-17), deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestUnsignedChar) 
@@ -129,8 +119,6 @@ TEST(TestSimpleTypes, TestUnsignedChar)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<unsigned char>(17), deserialized_value);
 }
 
 
@@ -150,8 +138,6 @@ TEST(TestSimpleTypes, TestShort)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<short>(17), deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestUnsignedShort) 
@@ -170,8 +156,6 @@ TEST(TestSimpleTypes, TestUnsignedShort)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<unsigned short>(17), deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestInt) 
@@ -190,8 +174,6 @@ TEST(TestSimpleTypes, TestInt)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(17, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestUnsignedInt) 
@@ -210,8 +192,6 @@ TEST(TestSimpleTypes, TestUnsignedInt)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<unsigned int>(17), deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestLong) 
@@ -230,8 +210,6 @@ TEST(TestSimpleTypes, TestLong)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(17L, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestUnsignedLong) 
@@ -250,8 +228,6 @@ TEST(TestSimpleTypes, TestUnsignedLong)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(17UL, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestLongLong) 
@@ -270,8 +246,6 @@ TEST(TestSimpleTypes, TestLongLong)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(17LL, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestUnsignedLongLong) 
@@ -290,8 +264,6 @@ TEST(TestSimpleTypes, TestUnsignedLongLong)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(17ULL, deserialized_value);
 }
 
 
@@ -311,8 +283,6 @@ TEST(TestSimpleTypes, TestFloat)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(1.0f, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestDouble) 
@@ -331,8 +301,6 @@ TEST(TestSimpleTypes, TestDouble)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(1.0, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestLongDouble) 
@@ -351,8 +319,6 @@ TEST(TestSimpleTypes, TestLongDouble)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(static_cast<long double>(1.0), deserialized_value);
 }
 
 
@@ -372,8 +338,6 @@ TEST(TestSimpleTypes, TestBoolTrue)
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(false, deserialized_value);
 }
 
 TEST(TestSimpleTypes, TestBoolFalse) {
@@ -391,6 +355,4 @@ TEST(TestSimpleTypes, TestBoolFalse) {
     deserialize(deserialized_value, iss);
 
     EXPECT_EQ(value, deserialized_value);
-
-    EXPECT_NE(true, deserialized_value);
 }

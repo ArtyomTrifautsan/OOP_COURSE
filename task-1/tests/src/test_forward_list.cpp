@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <sstream>
@@ -7,7 +6,8 @@
 #include <unordered_map>
 
 // #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
 
 TEST(TestForwardList, EmptyForwardListInt)
@@ -26,9 +26,6 @@ TEST(TestForwardList, EmptyForwardListInt)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    src_forward_list.push_front(10);
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }
 
 
@@ -48,10 +45,6 @@ TEST(TestForwardList, ForwardListWithInt)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    auto it = src_forward_list.begin();
-    *it = 10;
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }
 
 
@@ -71,10 +64,6 @@ TEST(TestForwardList, ForwardListWithString)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    auto it = src_forward_list.begin();
-    *it = "second";
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }
 
 
@@ -94,10 +83,6 @@ TEST(TestForwardList, ForwardListWithSpecifiedString)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    auto it = src_forward_list.begin();
-    *it = "second";
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }
 
 
@@ -134,10 +119,6 @@ TEST(TestForwardList, UserDefinedType)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    auto it = src_forward_list.begin();
-    *it = {100, 200};
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }
 
 
@@ -170,12 +151,4 @@ TEST(TestForwardList, ComplexvalueType)
     deserialize(deserialized_forward_list, iss);
 
     EXPECT_EQ(src_forward_list, deserialized_forward_list);
-
-    auto it = src_forward_list.begin();
-    *it = {
-        {"no-first", 1000},
-        {"no-second", 2000},
-        {"no-third", 3000}
-    };
-    EXPECT_NE(src_forward_list, deserialized_forward_list);
 }

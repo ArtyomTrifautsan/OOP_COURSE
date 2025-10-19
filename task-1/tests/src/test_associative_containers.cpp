@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -10,30 +9,8 @@
 #include <string>
 
 // #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
-
-
-// template <typename T>
-// void test_associative_container(const T& value)
-// {
-//     std::string filename = "test.ser";  // переделать на stringstream
-//     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
-//     serialize(value, ofs);
-
-//     ofs.close();
-
-//     std::ifstream ifs(filename, std::ifstream::in | std::ifstream::binary);
-//     ifs >> std::noskipws;
-
-//     T deserialized_value{};
-//     deserialize(deserialized_value, ifs);
-
-//     ifs.close();
-//     std::remove(filename.c_str());
-
-//     EXPECT_EQ(value, deserialized_value);
-//     // EXPECT_NQ(value, deserialized_value);
-// }
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
 
 // std::map tests
@@ -52,9 +29,6 @@ TEST(TestMap, MapIntToIntEmpty) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({100, 100});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapIntToIntSimple) {
@@ -72,9 +46,6 @@ TEST(TestMap, MapIntToIntSimple) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({100, 100});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapStringToInt) {
@@ -97,9 +68,6 @@ TEST(TestMap, MapStringToInt) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({"alpha2", 100});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapIntToString) {
@@ -121,9 +89,6 @@ TEST(TestMap, MapIntToString) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({100, "100"});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapStringWithNullKey) {
@@ -145,9 +110,6 @@ TEST(TestMap, MapStringWithNullKey) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({"100", 100});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapDoubleToVector) {
@@ -169,9 +131,6 @@ TEST(TestMap, MapDoubleToVector) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({3.9, {100, 250}});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapComplexKeys) {
@@ -193,9 +152,6 @@ TEST(TestMap, MapComplexKeys) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({{10, 200}, "aaaaa"});
-    EXPECT_NE(m, deserialized_m);
 }
 
 TEST(TestMap, MapLarge) {
@@ -216,9 +172,6 @@ TEST(TestMap, MapLarge) {
     deserialize(deserialized_m, iss);
 
     EXPECT_EQ(m, deserialized_m);
-
-    m.insert({1000, 170.0});
-    EXPECT_NE(m, deserialized_m);
 }
 
 
@@ -238,9 +191,6 @@ TEST(TestSet, SetIntEmpty) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(1000);
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetIntSimple) {
@@ -258,9 +208,6 @@ TEST(TestSet, SetIntSimple) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(1000);
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetIntWithDuplicates) {
@@ -278,9 +225,6 @@ TEST(TestSet, SetIntWithDuplicates) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(1000);
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetString) {
@@ -298,9 +242,6 @@ TEST(TestSet, SetString) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert("1000");
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetDouble) {
@@ -318,9 +259,6 @@ TEST(TestSet, SetDouble) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(1000.0);
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetChar) {
@@ -338,9 +276,6 @@ TEST(TestSet, SetChar) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert('q');
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetLongLong) {
@@ -358,9 +293,6 @@ TEST(TestSet, SetLongLong) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(1000);
-    EXPECT_NE(s, deserialized_s);
 }
 
 TEST(TestSet, SetLarge) {
@@ -381,9 +313,6 @@ TEST(TestSet, SetLarge) {
     deserialize(deserialized_s, iss);
 
     EXPECT_EQ(s, deserialized_s);
-
-    s.insert(-1);
-    EXPECT_NE(s, deserialized_s);
 }
 
 

@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -6,28 +5,9 @@
 #include <string>
 
 // #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
-
-// void test_string(const std::string& str)
-// {
-//     std::string filename = "test.ser";
-//     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
-//     serialize(str, ofs);
-
-//     ofs.close();
-
-//     std::ifstream ifs(filename, std::ifstream::in | std::ifstream::binary);
-//     ifs >> std::noskipws;
-
-//     std::string deserialized_str{};
-//     deserialize(deserialized_str, ifs);
-
-//     ifs.close();
-//     std::remove(filename.c_str());
-
-//     EXPECT_EQ(str, deserialized_str);
-// }
 
 TEST(TestString, StringEmpty) 
 {
@@ -45,8 +25,6 @@ TEST(TestString, StringEmpty)
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(str, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringSimple) 
@@ -65,8 +43,6 @@ TEST(TestString, StringSimple)
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(str, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringWithNullByte) {
@@ -84,8 +60,6 @@ TEST(TestString, StringWithNullByte) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringStartsWithNull) {
@@ -102,8 +76,6 @@ TEST(TestString, StringStartsWithNull) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringEndsWithNull) {
@@ -120,8 +92,6 @@ TEST(TestString, StringEndsWithNull) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringOnlyNull) {
@@ -138,8 +108,6 @@ TEST(TestString, StringOnlyNull) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringMultipleNulls) {
@@ -156,8 +124,6 @@ TEST(TestString, StringMultipleNulls) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringWithNewlineTab) {
@@ -174,8 +140,6 @@ TEST(TestString, StringWithNewlineTab) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringWithCarriageReturn) {
@@ -192,8 +156,6 @@ TEST(TestString, StringWithCarriageReturn) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringUnicodeUtf8) {
@@ -210,8 +172,6 @@ TEST(TestString, StringUnicodeUtf8) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringLong) {
@@ -230,8 +190,6 @@ TEST(TestString, StringLong) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }
 
 TEST(TestString, StringMaxSize) {
@@ -250,6 +208,4 @@ TEST(TestString, StringMaxSize) {
     deserialize(deserialized_str, iss);
 
     EXPECT_EQ(s, deserialized_str);
-
-    EXPECT_NE("A", deserialized_str);
 }

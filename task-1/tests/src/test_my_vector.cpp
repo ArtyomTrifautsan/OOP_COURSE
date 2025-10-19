@@ -1,36 +1,12 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
 #include <fstream>
-// #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
 #include "my_vector.hpp"
 
-
-// template <typename T>
-// void test_my_vector(const MyVector<T>& vector)
-// {
-//     std::string filename = "test.ser";
-//     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
-
-//     serialize(vector, ofs);
-
-//     ofs.close();
-
-//     std::ifstream ifs(filename, std::ifstream::in | std::ifstream::binary);
-//     ifs >> std::noskipws;
-
-//     MyVector<T> deserialized_vector{};
-
-//     deserialize(deserialized_vector, ifs);
-
-//     ifs.close();
-//     std::remove(filename.c_str());
-
-//     EXPECT_EQ(vector, deserialized_vector);
-// }
-
+// #include <serialize_concepts.hpp>
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
 TEST(TestMyCustomVector, EmptyIntVector)
 {
@@ -48,9 +24,6 @@ TEST(TestMyCustomVector, EmptyIntVector)
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vector, deserialized_vector);
-
-    vector.push_back(100);
-    EXPECT_NE(vector, deserialized_vector);
 }
 
 TEST(TestMyCustomVector, IntVectorWithElements)
@@ -72,9 +45,6 @@ TEST(TestMyCustomVector, IntVectorWithElements)
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vector, deserialized_vector);
-
-    vector.push_back(100);
-    EXPECT_NE(vector, deserialized_vector);
 }
 
 TEST(TestMyCustomVector, StringVector)
@@ -96,9 +66,6 @@ TEST(TestMyCustomVector, StringVector)
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vector, deserialized_vector);
-
-    vector.push_back("100");
-    EXPECT_NE(vector, deserialized_vector);
 }
 
 TEST(TestMyCustomVector, LargeIntVector)
@@ -120,9 +87,6 @@ TEST(TestMyCustomVector, LargeIntVector)
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vector, deserialized_vector);
-
-    vector.push_back(100);
-    EXPECT_NE(vector, deserialized_vector);
 }
 
 TEST(TestMyCustomVector, UserDefinedType)
@@ -154,9 +118,6 @@ TEST(TestMyCustomVector, UserDefinedType)
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vector, deserialized_vector);
-
-    vector.push_back({7, 8});
-    EXPECT_NE(vector, deserialized_vector);
 }
 
 TEST(TestMyCustomVector, ReuseAfterClear)

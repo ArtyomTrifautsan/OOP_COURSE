@@ -83,132 +83,12 @@ struct has_insert_after<ContainerType, std::void_t<decltype(std::declval<Contain
     : std::true_type{};
 
 
-
-
-
-// template <typename ContainerType>
-// struct has_begin_end
-// {
-// private:
-// /*обсудить как это работает пошагово.*/
-//     static void detect_begin(...);
-//     template<typename U> static decltype(std::declval<U>().begin()) detect_begin(const U&);
-
-//     static void detect_end(...);
-//     template<typename U> static decltype(std::declval<U>().end()) detect_end(const U&);
-
-// public:
-//     static constexpr bool has_begin_value = std::negation<std::is_same<void, decltype(detect_begin(std::declval<ContainerType>()))>>::value;
-//     static constexpr bool has_end_value = std::negation<std::is_same<void, decltype(detect_end(std::declval<ContainerType>()))>>::value;
-//     static constexpr bool value = has_begin_value && has_end_value;
-// };
-
-
-// template <typename ContainerType>
-// struct has_size
-// {
-// private:
-//     static void detect_size(...);
-//     template<typename U> static decltype(std::declval<U>().size()) detect_size(const U&);
-// public:
-//     static constexpr bool value = std::negation<std::is_same<void, decltype(detect_size(std::declval<ContainerType>()))>>::value;
-// };
-
-
-// template <typename ContainerType>
-// struct has_clear
-// {
-// private:
-//     static void* detect_clear(...);
-//     template<typename U> static decltype(std::declval<U>().clear()) detect_clear(const U&);
-// public:
-//     static constexpr bool value = std::negation<std::is_same<void*, decltype(detect_clear(std::declval<ContainerType>()))>>::value;
-// };
-
-
-// template <typename ContainerType>
-// struct has_push_back
-// {
-// private:
-//     static char detect_push_back(...);
-//     template<typename U> static decltype(std::declval<U>().push_back(std::declval<typename U::value_type>())) detect_push_back(const U&);
-// public:
-//     static constexpr bool value = std::negation<std::is_same<char, decltype(detect_push_back(std::declval<ContainerType>()))>>::value;
-// };
-
-
-// template <typename ContainerType>
-// struct has_insert
-// {
-// private:
-//     static void detect_insert(...);
-//     template<typename U> static decltype(std::declval<U>().insert(std::declval<typename U::value_type>())) detect_insert(const U&);
-// public:
-//     static constexpr bool value = std::negation<std::is_same<void, decltype(detect_insert(std::declval<ContainerType>()))>>::value;
-// };
-
-
-// template <typename ContainerType>
-// struct has_insert_after_before_begin
-// {
-// private:
-//     static void detect_insert_after(...);
-//     template<typename U> static decltype(std::declval<U>().insert_after(std::declval<typename U::iterator>(), std::declval<typename U::value_type>())) detect_insert_after(const U&);
-
-//     static void detect_before_begin(...);
-//     template<typename U> static decltype(std::declval<U>().before_begin()) detect_before_begin(const U&);
-// public:
-//     static constexpr bool has_insert_after = std::negation<std::is_same<void, decltype(detect_insert_after(std::declval<ContainerType>()))>>::value;
-//     static constexpr bool has_before_begin = std::negation<std::is_same<void, decltype(detect_before_begin(std::declval<ContainerType>()))>>::value;
-//     static constexpr bool value = has_insert_after && has_before_begin;
-// };
-
-
-// template <typename ContainerType>
-// using is_standart_container = std::enable_if_t<
-//     has_begin_end<ContainerType>::value &&
-//     has_clear<ContainerType>::value &&
-//     has_size<ContainerType>::value, 
-//     ContainerType
-// >;
-
-// template <typename ContainerType>
-// using is_sequential_container = std::enable_if_t<
-//     has_begin_end<ContainerType>::value && 
-//     has_clear<ContainerType>::value && 
-//     has_size<ContainerType>::value && 
-//     has_push_back<ContainerType>::value,
-//     ContainerType
-// >;
-
-// template <typename ContainerType>
-// using is_associative_container = std::enable_if_t<
-//     has_begin_end<ContainerType>::value && 
-//     has_clear<ContainerType>::value && 
-//     has_size<ContainerType>::value && 
-//     has_insert<ContainerType>::value,
-//     ContainerType
-// >;
-
-// template <typename ContainerType>
-// using is_forward_list = std::enable_if_t<
-//     has_clear<ContainerType>::value && 
-//     has_insert_after_before_begin<ContainerType>::value,
-//     ContainerType
-// >;
-
-// static_assert(is_standart_container<std::vector<int>>*, "vector should be standard container");
-// static_assert(is_sequential_container<std::vector<int>>*, "vector should be standard container");
-// static_assert(is_standard_container<std::vector<int>>*, "vector should be standard container");
-// static_assert(is_standard_container<std::vector<int>>*, "vector should be standard container");
-
-
 template <typename T, typename = void>
 struct serializer
 {
     static void apply(const T& obj, std::ostream& os)
     {
-        // std::cout << "Using not base serializer" << std::endl;
+        // std::cout << "Using sfinae serializer" << std::endl;
 
         const uint8_t* ptr = reinterpret_cast<const uint8_t *>(&obj);
 
@@ -312,7 +192,6 @@ struct deserializer<std::pair<const T1, T2>>
 
 template <typename ContainerType>
 struct serializer<ContainerType, std::enable_if_t<has_size<ContainerType>::value && has_begin_end<ContainerType>::value>>
-// struct serializer<ContainerType, std::enable_if_t<has_size<ContainerType>::value, ContainerType>>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
@@ -386,9 +265,6 @@ struct serializer<ContainerType, std::enable_if_t<(!has_size<ContainerType>::val
 
         // Write the len of the container
         uint32_t len = std::distance(c.begin(), c.end());
-        // uint32_t len = 0;
-        // for (const auto& obj : c)
-        //     ++len;
         serialize(len, os);
 
         // Write objects

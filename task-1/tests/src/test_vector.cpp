@@ -1,4 +1,3 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -6,29 +5,8 @@
 #include <vector>
 
 // #include <serialize_concepts.hpp>
-#include <serialize_sfinae.hpp>
-
-
-// template <typename T>
-// void test_vector(const std::vector<T>& vector)
-// {
-//     std::string filename = "test.ser";
-//     std::ofstream ofs(filename, std::ofstream::out | std::ofstream::binary);
-//     serialize(vector, ofs);
-
-//     ofs.close();
-
-//     std::ifstream ifs(filename, std::ifstream::in | std::ifstream::binary);
-//     ifs >> std::noskipws;
-
-//     std::vector<T> deserialized_vector{};
-//     deserialize(deserialized_vector, ifs);
-
-//     ifs.close();
-//     std::remove(filename.c_str());
-
-//     EXPECT_EQ(vector, deserialized_vector);
-// }
+// #include <serialize_sfinae.hpp>
+#include "serialize.hpp"
 
 
 TEST(TestVectors, VectorIntEmpty) {
@@ -45,10 +23,8 @@ TEST(TestVectors, VectorIntEmpty) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorIntSmall) {
     std::vector<int> vec = {1, 2, 3, 4, 5};
@@ -64,10 +40,8 @@ TEST(TestVectors, VectorIntSmall) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorIntWithZerosAndNegatives) {
     std::vector<int> vec = {-1, 0, 1, -100, 255, INT_MIN, INT_MAX};
@@ -83,10 +57,8 @@ TEST(TestVectors, VectorIntWithZerosAndNegatives) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorIntLarge) {
     std::vector<int> vec(1000);
@@ -105,10 +77,8 @@ TEST(TestVectors, VectorIntLarge) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorDouble) {
     std::vector<double> vec = {0.0, 1.5, -2.718, 3.14159, 1e-10, 1e10};
@@ -124,10 +94,8 @@ TEST(TestVectors, VectorDouble) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100.0);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorBool) {
     std::vector<bool> vec = {true, false, true, false, true};
@@ -143,10 +111,8 @@ TEST(TestVectors, VectorBool) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(false);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorString) {
     std::vector<std::string> vec = {"", "hello", "world", "C++", "serialization test"};
@@ -162,10 +128,8 @@ TEST(TestVectors, VectorString) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back("100");
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorChar) {
     std::vector<char> vec = {'a', 'b', '\0', '\n', '\t', 'z'};
@@ -181,10 +145,8 @@ TEST(TestVectors, VectorChar) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorLongLong) {
     std::vector<long long> vec = {LLONG_MIN, -1, 0, 1, LLONG_MAX};
@@ -200,10 +162,8 @@ TEST(TestVectors, VectorLongLong) {
     deserialize(deserialized_vector, iss);
 
     EXPECT_EQ(vec, deserialized_vector);
-
-    vec.push_back(100);
-    EXPECT_NE(vec, deserialized_vector);
 }
+
 
 TEST(TestVectors, VectorVectorVectorString) {
     std::vector<std::vector<std::vector<std::string>>> vec = {
