@@ -7,7 +7,7 @@ ADD_SUBDIRECTORY(googletest)
 enable_testing()
 
 set(PROJECT_SOURCES
-    src/iterator_view_test.cpp
+    src/iterator_test.cpp
     src/range_test.cpp
 )
 

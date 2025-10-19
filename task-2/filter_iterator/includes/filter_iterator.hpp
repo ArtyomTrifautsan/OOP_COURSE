@@ -4,65 +4,72 @@
 #include <type_traits>
 
 /*
-Что не так:
-1) называть архивы с исходниками одинаково
-2) Убрать дефолтное значение Iterator end = Iterator()
-3) Убрать конструктор без предиката в IteratorView
-4) Переименовать IteratorView в Iterator
-5) Проверять все методы в IteratorView
-6) Проверить операторы и конструкторы копирования и присваивания в IteratorView и возможно создать если нужно
-7) Добавить разыминовывание через стрелочку, префиксный и постфиксный ++ (то есть все что нужно для ForwardIterator и LegacyIterator)
+Что было не так:
+1) называть архивы с исходниками одинаково  +
+2) Убрать дефолтное значение Iterator end = Iterator()  +
+3) Убрать конструктор без предиката в Iterator  +
+4) Переименовать IteratorView в Iterator    +
+5) Проверять все методы в Iterator  +
+6) Проверить операторы и конструкторы копирования и присваивания в Iterator и возможно создать если нужно   +
+7) Добавить разыминовывание через стрелочку, префиксный и постфиксный ++ (то есть все что нужно для ForwardIterator и LegacyIterator)   +
 */
 
 
 namespace Filter {
 
-    template <typename Predicate, typename Iterator>
-    class IteratorView
+    template <typename Predicate, typename _Iter>
+    class Iterator
     {
     public:
-        using value_type = std::iterator_traits<Iterator>::value_type;
-        using reference = std::iterator_traits<Iterator>::reference;
-        using pointer = std::iterator_traits<Iterator>::pointer;
-        using difference_type = std::iterator_traits<Iterator>::difference_type;
-
-        //  Пока так, а вообще тут должен быть либо forward_iterator, либо input_iterator
+        using value_type = std::iterator_traits<_Iter>::value_type;
+        using reference = std::iterator_traits<_Iter>::reference;
+        using pointer = std::iterator_traits<_Iter>::pointer;
+        using difference_type = std::iterator_traits<_Iter>::difference_type;
         using iterator_category = std::forward_iterator_tag;
 
 
-        IteratorView() = default;
+        Iterator() = default;
 
-        IteratorView(Predicate f, Iterator x, Iterator end = Iterator()) : m_predicate{f}, m_iter{x}, m_end{end}
+        Iterator(Predicate f, _Iter begin, _Iter end) : m_predicate{f}, m_iter{begin}, m_end{end}
         {
             go_to_closest_valid_item();
         }
 
-        // Убрать
-        IteratorView(Iterator x, Iterator end = Iterator()) : m_predicate{}, m_iter{x}, m_end{end} 
-        {
-            go_to_closest_valid_item();
-        }
+        Iterator(const Iterator&) = default;
+        Iterator& operator=(const Iterator&) = default;
 
-        // убрать эти 3 метода
-        Predicate predicate() const { return m_predicate; }
-        Iterator end() const { return m_end; }
-        Iterator const& base() const { return m_iter; }
+        Iterator(Iterator&&) = default;
+        Iterator& operator=(Iterator&&) noexcept = default;
 
         reference operator*() const { return *m_iter; }
 
-        IteratorView& operator++()
+        pointer operator->() const { return &(*m_iter); }
+
+        _Iter iter() const { return m_iter; }
+        _Iter end() const { return m_end; }
+        Predicate predicate() const { return m_predicate; }
+
+
+        Iterator& operator++()
         {
             if (m_iter != m_end) ++m_iter;
             go_to_closest_valid_item();
             return *this;
         }
 
-        friend bool operator==(const IteratorView& first, const IteratorView& second)
+        Iterator operator++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        friend bool operator==(const Iterator& first, const Iterator& second)
         {
             return (first.m_iter == second.m_iter);
         }
 
-        friend bool operator!=(const IteratorView& first, const IteratorView& second)
+        friend bool operator!=(const Iterator& first, const Iterator& second)
         {
             return !(first == second);
         }
@@ -70,33 +77,31 @@ namespace Filter {
     private:
         void go_to_closest_valid_item()
         {
-            /*поменять местами условия*/
-            while ((!m_predicate(*m_iter)) && (m_iter != m_end))
+            while ((m_iter != m_end) && ((!m_predicate(*m_iter))))
                 ++m_iter;
         }
 
         Predicate m_predicate{};
-        Iterator m_iter{};
-        Iterator m_end{};
+        _Iter m_iter{};
+        _Iter m_end{};
     };
 
 
-    template <typename Predicate, typename Iterator>
+    template <typename Predicate, typename _Iter>
     class Range
     {
     public:
-        Range(IteratorView<Predicate, Iterator> begin, IteratorView<Predicate, Iterator> end) : m_begin{begin}, m_end{end} {}
-        /*
-        Тут надо передавать обычный Iterator и конструировать IteratorView внутри. И потом вохвращать его/
-        IteratorView создается только с помощью Range!!!
-        */
+        using iterator = Iterator<Predicate, _Iter>;
 
-        IteratorView<Predicate, Iterator> begin() const { return m_begin; }
-        IteratorView<Predicate, Iterator> end() const { return m_end; }
+
+        Range(Predicate f, _Iter begin, _Iter end) : m_begin{iterator{f, begin, end}}, m_end{iterator{f, end, end}} {}
+
+        iterator begin() const { return m_begin; }
+        iterator end() const { return m_end; }
 
     private:
-        IteratorView<Predicate, Iterator> m_begin{};
-        IteratorView<Predicate, Iterator> m_end{};
+        iterator m_begin{};
+        iterator m_end{};
     };
 
 }
