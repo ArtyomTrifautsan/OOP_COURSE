@@ -8,7 +8,7 @@
 
 namespace ns_Trie
 {
-    constexpr int alphabet_length = 26;
+    constexpr int alphabet_size = 26;
 
     template <typename T> class Iterator;
 
@@ -114,12 +114,34 @@ namespace ns_Trie
     class SubTrie {};
 
 
+    /*
+    Вопросы:
+    1) Храним указатель на объект или сам объект?
+    2) Vertex сам создает объект внутри себя или мы передаем ему готовый?
+    3) Переделать указатели в умные?
+    */
     template <typename T> class Vertex
     {
     public:
-        Vertex() = delete;
+        Vertex()
+        {
+            m_children = {nullptr};
+            m_data = nullptr;
+            m_end_of_word = false;
+        }
+        Vertex(const Vertex&) = delete;
+        Vertex& operator=(const Vertex&) = delete;
+        Vertex(Vertex&&) = delete;
+        Vertex& operator=(Vertex&&) = delete;
+
+        T& data() const noexcept { return *m_data; }
+        bool end_of_word() const noexcept { return m_end_of_word; }
+    
     private:
-        std::array<Vertex*, alphabet_length> children{};
+        // Почему мы вообще можем тут инициализировать поля?
+        std::array<Vertex*, alphabet_size> m_children = { nullptr };
+        T* m_data = nullptr;
+        bool m_end_of_word = false;
     };
 
 
