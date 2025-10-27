@@ -1,29 +1,34 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(PROJECT_NAME filter_iterator_tests)
-project(${PROJECT_NAME})
+# set(PROJECT_NAME filter_iterator_tests)
+# project(${PROJECT_NAME})
+
+set(SFINAE_V tests_sfinae)
+set(CONCEPTS_V tests_concepts)
 
 ADD_SUBDIRECTORY(googletest)
 enable_testing()
 
-set(PROJECT_INCLUDES
-    src/filter_iterator_sfinae.cpp
-    src/filter_iterator_concepts.cpp
-)
-
 set(PROJECT_SOURCES
+    src/filter_iterator.hpp
     src/iterator_test.cpp
     src/range_test.cpp
+    src/main.cpp
 )
 
-add_executable(${PROJECT_NAME}
-    src/main.cpp
+add_executable(${SFINAE_V}
+    src/filter_iterator_sfinae.hpp
     ${PROJECT_SOURCES}
 )
+target_link_libraries(${SFINAE_V} gtest)
+set_target_properties(${SFINAE_V} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
+target_compile_features(${SFINAE_V} PUBLIC cxx_std_17)
 
-target_link_libraries(${PROJECT_NAME} gtest gmock pthread)
-# target_link_libraries(${PROJECT_NAME} filter_iterator)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
-
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+add_executable(${CONCEPTS_V}
+    src/filter_iterator_concepts.hpp
+    ${PROJECT_SOURCES}
+)
+target_compile_definitions(${CONCEPTS_V} PRIVATE USE_CONCEPTS)
+target_link_libraries(${CONCEPTS_V} gtest)
+set_target_properties(${CONCEPTS_V} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
+target_compile_features(${CONCEPTS_V} PUBLIC cxx_std_20)
