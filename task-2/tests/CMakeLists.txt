@@ -7,7 +7,8 @@ ADD_SUBDIRECTORY(googletest)
 enable_testing()
 
 set(PROJECT_INCLUDES
-    src/filter_iterator.cpp
+    src/filter_iterator_sfinae.cpp
+    src/filter_iterator_concepts.cpp
 )
 
 set(PROJECT_SOURCES
@@ -25,4 +26,4 @@ target_link_libraries(${PROJECT_NAME} gtest gmock pthread)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)

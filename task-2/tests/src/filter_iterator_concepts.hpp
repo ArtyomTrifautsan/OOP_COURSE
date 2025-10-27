@@ -2,11 +2,13 @@
 
 #include <iterator>
 #include <type_traits>
+#include <concepts>
 
 
 namespace Filter {
 
     template <typename Predicate, typename _Iter>
+    requires std::forward_iterator<_Iter>
     class Iterator
     {
     public:
@@ -81,7 +83,6 @@ namespace Filter {
     {
     public:
         using iterator = Iterator<Predicate, _Iter>;
-
 
         Range(Predicate f, _Iter begin, _Iter end) : m_begin{iterator{f, begin, end}}, m_end{iterator{f, end, end}} {}
 

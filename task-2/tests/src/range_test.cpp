@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "filter_iterator.hpp"
+#include "filter_iterator_concepts.hpp"
 
 
 TEST(TestFilterRange, VectorInt)
