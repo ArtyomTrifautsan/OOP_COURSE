@@ -3,17 +3,6 @@
 #include <iterator>
 #include <type_traits>
 
-/*
-Что было не так:
-1) называть архивы с исходниками одинаково  +
-2) Убрать дефолтное значение Iterator end = Iterator()  +
-3) Убрать конструктор без предиката в Iterator  +
-4) Переименовать IteratorView в Iterator    +
-5) Проверять все методы в Iterator  +
-6) Проверить операторы и конструкторы копирования и присваивания в Iterator и возможно создать если нужно   +
-7) Добавить разыминовывание через стрелочку, префиксный и постфиксный ++ (то есть все что нужно для ForwardIterator и LegacyIterator)   +
-*/
-
 
 namespace Filter {
 
@@ -21,11 +10,11 @@ namespace Filter {
     class Iterator
     {
     public:
-        using value_type = std::iterator_traits<_Iter>::value_type;
-        using reference = std::iterator_traits<_Iter>::reference;
-        using pointer = std::iterator_traits<_Iter>::pointer;
-        using difference_type = std::iterator_traits<_Iter>::difference_type;
-        using iterator_category = std::forward_iterator_tag;
+        using value_type = typename std::iterator_traits<_Iter>::value_type;
+        using reference = typename std::iterator_traits<_Iter>::reference;
+        using pointer = typename std::iterator_traits<_Iter>::pointer;
+        using difference_type = typename std::iterator_traits<_Iter>::difference_type;
+        using iterator_category = typename std::forward_iterator_tag;
 
 
         Iterator() = default;
