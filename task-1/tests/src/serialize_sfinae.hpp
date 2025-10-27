@@ -264,7 +264,7 @@ struct serializer<ContainerType, std::enable_if_t<(!has_size<ContainerType>::val
         // std::cout << "Using serializer for forward_list container" << std::endl;
 
         // Write the len of the container
-        uint32_t len = std::distance(c.begin(), c.end());
+        uint32_t len = static_cast<uint32_t>(std::distance(c.begin(), c.end()));
         serialize(len, os);
 
         // Write objects

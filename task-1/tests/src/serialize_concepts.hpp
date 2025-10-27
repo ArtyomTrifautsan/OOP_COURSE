@@ -256,9 +256,10 @@ struct serializer<ContainerType>
         // std::cout << "Using serializer for forward_list container" << std::endl;
 
         // Write the len of the container
-        uint32_t len = 0;
-        for (const auto& obj : c)
-            ++len;
+        // uint32_t len = 0;
+        // for (const auto& obj : c)
+        //     ++len;
+        uint32_t len = static_cast<uint32_t>(std::distance(c.begin(), c.end()));
         serialize(len, os);
 
         // Write objects
