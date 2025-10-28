@@ -6,12 +6,18 @@
 #include "filter_iterator.hpp"
 
 
-TEST(TestFilterRange, VectorInt)
-{
+/*
+Добавить лямбда функции, простые функции 
+*/
+
+namespace {
     struct MyPredicate
     {
         bool operator()(int a) { return a % 2 == 0; }
     };
+}
+TEST(TestFilterRange, VectorInt)
+{
     MyPredicate pred{};
 
     std::vector<int> v = {1, 2, 3, 4, 5, 6};
@@ -37,7 +43,7 @@ TEST(TestFilterIterator, IteratorConstructorWithParameters1)
 
     std::vector<int> v = {};
 
-    Filter::Range range{pred, v.begin(), v.end()};
+    Filter::Range range{MyPredicate{}, v.begin(), v.end()};
 
     auto filter_iter_begin = range.begin();
     auto filter_iter_end = range.end();
@@ -84,7 +90,7 @@ TEST(TestFilterIterator, IteratorCopyConstructor)
 
     std::vector<int> v = {0, 1, 2, 3, 0, 1, 2, 3};
 
-    Filter::Range range{pred, v.begin(), v.end()};
+    Filter::Range range{pred, v.data(), v.data() + v.size()};
 
     auto iter_begin = range.begin();
     auto iter_end = range.end();
@@ -123,7 +129,7 @@ TEST(TestFilterIterator, IteratorCopyAssignOperator)
     auto iter_end = range.end();
 
     // Просто чтоб компилятор не выкинул создание объекта copied_filter_iter
-    std::vector<int> v2 = {0, 1, 2, 3};
+    //std::vector<int> v2 = {0, 1, 2, 3};
     Filter::Range range2{pred, v.begin(), v.end()};
     auto iter_begin_2 = range2.begin();
     EXPECT_NE(iter_begin_2, range2.end());     
