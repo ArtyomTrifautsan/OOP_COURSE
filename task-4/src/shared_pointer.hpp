@@ -5,27 +5,210 @@ namespace SharedPointer {
 
     template<class Type, class TDeleter>
     class Pointer {
-        typedef SharedPTR<Type, TDeleter> t_SharedPTR;
+        using t_Pointer = Pointer<Type, TDeleter>;
+
     public: // Constructors and destructor.
-        SharedPTR();
-        SharedPTR(Type *pObj);
-        SharedPTR(t_SharedPTR &&uniquePTR); // Move constructor.
-        SharedPTR(const t_SharedPTR&);
-        ~SharedPTR();
+        Pointer() noexcept
+        {
+            m_obj_ptr = nullptr;
+            *m_ref_counter = 0;
+            m_deleter{};    // Мы хотим чтобы конструктор был noexcept, а это выражение может выдать bad_alloc
+        }
+
+        Pointer(Type *pObj) noexcept
+        {
+            // А что будет если передать сюда стековый указатель? У нас же не сработает delete expression
+            if (pObj == nullptr)
+            {
+                m_obj_ptr = nullptr;
+                *m_ref_counter = 0;
+            }
+            else 
+            {
+                m_obj_ptr = pObj;
+                *m_ref_counter = 1;
+            }
+
+            m_deleter{};
+        }
+
+        Pointer(t_Pointer&& uniquePTR) noexcept // Move constructor.
+        {
+            if (uniquePTR == *this) return;
+
+            m_obj_ptr = uniquePTR.m_obj_ptr;
+            m_ref_counter = uniquePTR.m_ref_counter;
+            m_deleter = uniquePTR.m_deleter;
+
+            ++(*m_ref_counter);
+
+            uniquePTR.m_ref_counter = nullptr;
+        }
+
+        Pointer(const t_Pointer& other)
+        {
+            // Мы же не можем вызвать конструктор у уже существующего объекта?
+
+            if (other == *this) return;
+
+            m_obj_ptr = other.m_obj_ptr;
+            m_ref_counter = other.m_ref_counter;
+            m_deleter = other.m_deleter;
+
+            ++(*m_ref_counter);
+        }
+
+        ~Pointer()
+        {
+            if (*m_ref_counter == 0){}
+
+            else if (*m_ref_counter == 1)
+            {
+                if (m_obj_ptr != nullptr)
+                {
+                    m_deleter(m_obj_ptr);
+                    m_obj_ptr = nullptr;
+                }
+                *m_ref_counter = 0;
+            }
+
+            else
+            {
+                --(*m_ref_counter);
+            }
+        }
+
     public: // Assignment.
-        t_SharedPTR& operator=(t_SharedPTR &&sharedPTR);
-        t_SharedPTR& operator=(Type *pObject);
-        t_SharedPTR& operator=(const t_SharedPTR&);
+        t_Pointer& operator=(t_Pointer &&Pointer) noexcept
+        {
+            if (other == *this) return *this;
+
+            // m_obj_ptr = uniquePTR.m_obj_ptr;
+            std::swap(m_obj_ptr, uniquePTR.m_obj_ptr);
+            // m_ref_counter = uniquePTR.m_ref_counter;
+            std::swap(m_ref_counter, uniquePTR.m_ref_counter);  // делаю чтобы гарантировать noexcept
+            // m_deleter = uniquePTR.m_deleter;
+            std::swap(m_deleter, uniquePTR.m_deleter);
+
+            ++(*m_ref_counter);
+
+            return *this
+        }
+
+        t_Pointer& operator=(Type *pObject)
+        {
+            release();
+
+            if (pObj == nullptr)
+            {
+                m_obj_ptr = nullptr;
+                *m_ref_counter = 0;
+            }
+            else 
+            {
+                m_obj_ptr = pObj;
+                *m_ref_counter = 1;
+            }
+
+            m_deleter{};
+        }
+
+        t_Pointer& operator=(const t_Pointer&)
+        {
+            if (other == *this) return *this;
+
+            release();
+
+            m_obj_ptr = other.m_obj_ptr;
+            m_ref_counter = other.m_ref_counter;
+            m_deleter = other.m_deleter;
+
+            ++(*m_ref_counter);
+
+            return *this;
+        }
+
     public: // Observers.
-        Type& operator*() const; // Dereference the stored pointer.
-        Type* operator->() const; // Return the stored pointer.
-        Type* get() const; // Return the stored pointer.
-        TDeleter& get_deleter(); // Return a reference to the stored deleter.
-        operator bool() const; // Return false if the stored pointer is null.
+    // Dereference the stored pointer.
+        Type& operator*() const { return *m_obj_ptr; }
+
+        // Return the stored pointer.
+        Type* operator->() const { return m_obj_ptr; }
+
+        // Return the stored pointer.
+        Type* get() const { return m_obj_ptr; }
+
+        // Return a reference to the stored deleter.
+        TDeleter& get_deleter() { return m_deleter; }
+
+        // Return false if the stored pointer is null.
+        operator bool() const { return m_obj_ptr != nullptr; }
+
     public: // Modifiers.
-        void release(); // Release ownership of any stored pointer.
-        void reset(Type *pObject = nullptr); // Replace the stored pointer.
-        void swap(t_SharedPTR &sharedPTR); // Exchange the pointer with another object.
+        // Release ownership of any stored pointer.
+        void release() 
+        {
+            if (m_obj_ptr == nullptr) return;
+
+            if (*m_ref_counter > 1)
+            {
+                m_obj_ptr = nullptr;
+                --(*m_ref_counter);
+            }
+            else
+            {
+                m_deleter(m_obj_ptr);
+                m_obj_ptr = nullptr;
+                *m_ref_counter = 0;
+            }
+        }
+
+        // Replace the stored pointer.
+        void reset(Type *pObject = nullptr)
+        {
+            /*
+            m_obj_ptr и pObject -- nullptr
+            ничего не происходит, по сути просто сбрасываем и так пустой указатель
+
+            m_obj_ptr -- nullptr, pObject - нет
+            по сути создаем первый указатель на pObject, т.е. по аналогии с конструктором
+
+            m_obj_ptr -- нет, pObject - nullptr
+            сбрасываем существующий укзатель, делая его пустым
+
+            m_obj_ptr и pObject - не nullptr
+            по сути как оператор присваивания
+            */
+
+            // if (m_obj_ptr == nullptr)
+            // {
+            //     m_obj_ptr = pObj;
+            //     *m_ref_counter = 1;
+            //     m_deleter{};
+            // }
+            // else
+            // {
+            //     if (*m_ref_counter > 1)
+            //     {
+            //         --(*m_ref_counter);
+            //         m_obj_ptr = pObject;
+            //     }
+            //     else
+            //     {
+            //         m_deleter(m_obj_ptr);
+            //         m_obj_ptr = nullptr;
+            //         *m_ref_counter = 0;
+            //     }
+            // }
+        }
+
+        // Exchange the pointer with another object.
+        void swap(t_Pointer &Pointer); 
+
+    private:
+        Type* m_obj_ptr = nullptr;
+        int* m_ref_counter = 0;
+        TDeleter m_deleter{};
     };
 
 }
