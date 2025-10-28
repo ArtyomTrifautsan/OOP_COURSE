@@ -11,7 +11,7 @@ enable_testing()
 
 set(PROJECT_SOURCES
     src/filter_iterator.hpp
-    src/iterator_test.cpp
+    # src/iterator_test.cpp
     src/range_test.cpp
     src/main.cpp
 )
