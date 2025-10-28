@@ -8,33 +8,27 @@ namespace SharedPointer {
         using t_Pointer = Pointer<Type, TDeleter>;
 
     public: // Constructors and destructor.
-        Pointer() noexcept
-        {
-            m_obj_ptr = nullptr;
-            *m_ref_counter = 0;
-            m_deleter{};    // Мы хотим чтобы конструктор был noexcept, а это выражение может выдать bad_alloc
-        }
+        Pointer() noexcept = default;
 
-        Pointer(Type *pObj) noexcept
+        Pointer(Type *pObj, TDeleter deleter_ = {}) noexcept
         {
             // А что будет если передать сюда стековый указатель? У нас же не сработает delete expression
             if (pObj == nullptr)
             {
-                m_obj_ptr = nullptr;
-                *m_ref_counter = 0;
+                return;
             }
-            else 
+            
             {
                 m_obj_ptr = pObj;
                 *m_ref_counter = 1;
             }
 
-            m_deleter{};
+            m_deleter = deleter_;
         }
 
-        Pointer(t_Pointer&& uniquePTR) noexcept // Move constructor.
+        Pointer(Pointer&& uniquePTR) noexcept // Move constructor.
         {
-            if (uniquePTR == *this) return;
+    
 
             m_obj_ptr = uniquePTR.m_obj_ptr;
             m_ref_counter = uniquePTR.m_ref_counter;
@@ -49,7 +43,6 @@ namespace SharedPointer {
         {
             // Мы же не можем вызвать конструктор у уже существующего объекта?
 
-            if (other == *this) return;
 
             m_obj_ptr = other.m_obj_ptr;
             m_ref_counter = other.m_ref_counter;
