@@ -38,9 +38,9 @@ namespace Filter {
 
             pointer operator->() const { return &(*m_iter); }
 
-            _Iter iter() const { return m_iter; }
-            _Iter end() const { return m_end; }
-            Predicate predicate() const { return m_predicate; }
+            // _Iter iter() const { return m_iter; }
+            // _Iter end() const { return m_end; }
+            // Predicate predicate() const { return m_predicate; }
 
 
             Iterator& operator++()
