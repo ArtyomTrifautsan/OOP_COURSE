@@ -16,7 +16,7 @@ namespace Pointers {
             void operator()(Type* ptr) const noexcept { delete ptr; }
         };
 
-
+        // std::default_deleter<T> -- заменить
         template <typename Type, typename TDeleter = BaseDeleter<Type>>
         class ControlBlock
         {
@@ -27,11 +27,11 @@ namespace Pointers {
                 m_obj_ptr = _obg;
             }
 
-            template <typename... Args>
-            ControlBlock(Args&&... args) : m_shared_ref_counter{1}
-            {
-                m_obj_ptr = new Type(std::forward<Args>(args)...);
-            }
+            // template <typename... Args>
+            // ControlBlock(Args&&... args) : m_shared_ref_counter{1}
+            // {
+            //     m_obj_ptr = new Type(std::forward<Args>(args)...);
+            // }
 
             ~ControlBlock()
             {
@@ -140,7 +140,8 @@ namespace Pointers {
 
         t_SharedPTR& operator=(const t_SharedPTR& other)
         {
-            if (other == *this) return *this;
+            // сравнить control_block'и тоже
+            if (&other == this) return *this;
 
             release();
 
@@ -155,6 +156,8 @@ namespace Pointers {
 
     public: // Observers.
     // Dereference the stored pointer.
+
+        // Кидать исключение если m_control_block == nullptr
         Type& operator*() const { return *(m_control_block->get_obj_ptr()); }
 
         // Return the stored pointer.
@@ -189,6 +192,7 @@ namespace Pointers {
         // Replace the stored pointer.
         void reset(Type *pObj = nullptr)
         {
+            // кинуть если передали тот же самый указатель который уже хранится
             release();
 
             if (pObj == nullptr) return;
@@ -215,16 +219,11 @@ namespace Pointers {
     };
 
 
-    template<typename Type>
-    SharedPTR<Type, _Impl::BaseDeleter<Type>> make_shared()
-    {
-        return SharedPTR<Type, _Impl::BaseDeleter<Type>>();
-    }
 
 
     template<typename Type, typename... Args>
     requires (!std::is_same_v<Args, SharedPTR<Type, _Impl::BaseDeleter<Type>>&> && ...)
-    SharedPTR<Type, _Impl::BaseDeleter<Type>> make_shared(Args&&... args)
+    auto make_shared(Args&&... args)
     // auto make_shared(Args&&... args) -> std::enable_if_t<(sizeof...(Args) > 0) && !std::is_same_v<std::decay>>
     {
         /*
@@ -236,15 +235,10 @@ namespace Pointers {
         при создании SharedPTR с помощью функций make_shared, а второй при создании SharedPTR с 
         помощью конструкторов.
         */
-        Type* pObj = new Type(std::forward<Args>(args)...);
-        return SharedPTR<Type, _Impl::BaseDeleter<Type>>(pObj);
+        Type* pObj = new Type{std::forward<Args>(args)...};
+        return SharedPTR<Type>(pObj);
     }
 
 
-    template<typename Type>
-    SharedPTR<Type, _Impl::BaseDeleter<Type>> make_shared(const SharedPTR<Type, _Impl::BaseDeleter<Type>>& other)
-    {
-        return SharedPTR(other);
-    }
 
 }
