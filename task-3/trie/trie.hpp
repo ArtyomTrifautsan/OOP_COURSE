@@ -128,7 +128,8 @@ namespace ns_Trie
         _Impl::Vertex<T>* get_next_vertex();
 
     private:
-        _Impl::Vertex<T> m_root{};
+        using vertex_ptr_t = std::shared_ptr<_Impl::Vertex<T>>;
+        vertex_ptr_t m_root_ptr = nullptr;
         size_type m_size = 0;
     };
 
@@ -136,19 +137,38 @@ namespace ns_Trie
     namespace _Impl {
 
         template <typename T>
-        class SubTrie {};
+        class SubTrie 
+        {
+
+        };
 
         template <typename T> class Vertex
         {
         public:
-            // friend class Iterator;
-
             using key_type = std::string;
 
-            Vertex()
+            Vertex() = delete;
+
+            /*
+            Когда мы создаем новую вершину?
+            Создаем промежуточную вершину без значения, только с символом
+            Создаем вершину со значением
+            */
+
+            Vertex(const char _s, std::shared_ptr<Vertex<T>> _parent)
             {
-                // for (int i = 0; i < m_children.size(); i++) m_children[i] = nullptr;
+                m_s = _s;
+                m_parent = _parent;
             }
+
+            Vertex(const key_type& key, const T& _data, std::shared_ptr<Vertex<T>> _parent)
+            {
+                m_s = _s;
+                m_data = std::make_shared<std::pair<const key_type, T>>(key, _data);
+                m_parent = _parent;
+                m_end_of_word = true;
+            }
+
             Vertex(const Vertex&) = default;
             Vertex& operator=(const Vertex&) = default;
             Vertex(Vertex&&) = default;
@@ -168,15 +188,21 @@ namespace ns_Trie
                 }
             }
 
+            void release_data()
+            {
+                m_data = nullptr;
+                m_end_of_word = false;
+            }
+
             char symbol() const noexcept { return m_s; }
             std::pair<const key_type, T>& data() const noexcept { return *m_data; }
             std::pair<const key_type, T>* data_ptr() const noexcept { return m_data.get(); }
             const std::shared_ptr<Vertex> parent() const noexcept { return m_parent; }
             const std::map<char, std::shared_ptr<Vertex>>& children() const noexcept { return m_children; }
             bool end_of_word() const noexcept { return m_end_of_word; }
-            bool& end_of_word() noexcept { return m_end_of_word; }
+            // bool& end_of_word() noexcept { return m_end_of_word; }
 
-            std::string prefix() const 
+            std::string prefix() const
             {
                 if (m_parent == nullptr)
                     return "";
@@ -204,12 +230,21 @@ namespace ns_Trie
                 return !(first == second);
             }
 
+            std::shared_ptr<Vertex<T>> next_vertex()
+            {
+                // char current_symbol = 0;
+                // std::shared_ptr<Vertex<T>> next_vertex{};
+                // std::shared_ptr<Vertex<T>> checking_vertex = m_vertex;
+
+                // ЗАДАЧА: переместить метод next_vertex() из Iterator в Vertex.
+            }
+
         private:
             // Почему мы вообще можем тут инициализировать поля?
             char m_s{};
             std::shared_ptr<std::pair<const key_type, T>> m_data{};
-            std::shared_ptr<Vertex> m_parent{};
-            std::map<char, std::shared_ptr<Vertex>> m_children{};
+            std::shared_ptr<Vertex<T>> m_parent{};
+            std::map<char, std::shared_ptr<Vertex<T>>> m_children{};
             bool m_end_of_word = false;
         };
 
