@@ -137,6 +137,8 @@ TEST(PrefixIncrement, MovementAlongContainer)
 {
     std::vector<int> v = {1, 2, 3, 4, 5, 6, 7};
 
+    /*std::iota - узнать что это*/
+
     Filter::Range range{IsEven{}, v.begin(), v.end()};
 
     auto iter_begin = range.begin();
@@ -296,7 +298,7 @@ TEST(STL, MaxElement) {
         bool operator()(int x) const { return x % 2 == 0; }
     };
 
-    std::vector<int> v = {1, 5, 3, 8, 2};
+    std::vector<int> v = {1, 5, 3, 8, 2, 9};
 
     Filter::Range range{IsEven{}, v.begin(), v.end()};
 
