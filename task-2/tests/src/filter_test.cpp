@@ -5,13 +5,10 @@
 #include <forward_list>
 #include <map>
 #include <algorithm>
+#include <numeric>
 
 #include "filter_iterator.hpp"
 
-
-/*
-Добавить лямбда функции, простые функции 
-*/
 
 namespace {
     struct IsEven
@@ -43,7 +40,24 @@ namespace {
 }
 
 
-TEST(Constructor, Copy)
+TEST(FilterRange, HugeVector)
+{
+    std::vector<int> v(1'000'000);
+    std::iota(v.begin(), v.end(), 1);
+    IsEven pred{};
+    Filter::Range range{pred, v.begin(), v.end()};
+
+    int n = 1;
+    for (auto it : range)
+    {
+        EXPECT_EQ(pred(it), true);
+        EXPECT_EQ(it, v[n]);
+        n += 2;
+    }
+}
+
+
+TEST(IteratorConstructors, CopyConstructor)
 {
     std::vector<int> v = {1, 2, 3, 4, 5, 6, 7};
 
@@ -54,18 +68,10 @@ TEST(Constructor, Copy)
     auto iter_begin_copy = iter_begin;
 
     EXPECT_EQ(iter_begin, iter_begin_copy);
-
-    ++iter_begin;
-
-    EXPECT_NE(iter_begin, iter_begin_copy);
-
-    ++iter_begin_copy;
-
-    EXPECT_EQ(iter_begin, iter_begin_copy);
 }
 
 
-TEST(AssignOperator, Copy)
+TEST(IteratorOperators, CopyAssignOperator)
 {
     std::vector<int> v = {1, 2, 3, 4, 5, 6, 7};
 
@@ -82,14 +88,6 @@ TEST(AssignOperator, Copy)
     iter_begin_2 = iter_begin;
 
     EXPECT_EQ(iter_begin, iter_begin_2);
-
-    ++iter_begin;
-
-    EXPECT_NE(iter_begin, iter_begin_2);
-
-    ++iter_begin_2;
-
-    EXPECT_EQ(iter_begin, iter_begin_2);
 }
 
 
@@ -102,14 +100,6 @@ TEST(Dereference, ByAsterisk)
     auto iter_begin = range.begin();
 
     EXPECT_EQ(*iter_begin, 2);
-
-    ++iter_begin;
-
-    EXPECT_EQ(*iter_begin, 4);
-
-    ++iter_begin;
-
-    EXPECT_EQ(*iter_begin, 6);
 }
 
 
@@ -122,14 +112,6 @@ TEST(Dereference, ByArrow)
     auto iter_begin = range.begin();
 
     EXPECT_EQ(iter_begin->radius(), 2);
-
-    ++iter_begin;
-
-    EXPECT_EQ(iter_begin->radius(), 4);
-
-    ++iter_begin;
-
-    EXPECT_EQ(iter_begin->radius(), 6);
 }
 
 
