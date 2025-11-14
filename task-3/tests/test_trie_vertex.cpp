@@ -3,7 +3,11 @@
 #include "../trie/trie.hpp"
 
 
-TEST(TrieVertexTest, TestTest)
+TEST(Trie, Trie)
 {
-    ns_Trie::_Impl::Vertex<int> vertex{};
+    Containers::Trie<int> trie{};
+
+    std::string s = "first";
+    int a = 1;
+    trie.insert(s, a);
 }
