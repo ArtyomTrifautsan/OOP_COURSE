@@ -50,9 +50,9 @@ namespace Containers
                             std::input_iterator_tag,
                             typename std::iterator_traits<InputIterator>::iterator_category
                         > &&
-                        std::is_same_v<
-                            typename std::iterator_traits<InputIterator>::value_type,
-                            std::pair<const key_type, value_type>
+                        std::is_convertible_v<
+                            std::pair<key_type, value_type>,
+                            typename std::iterator_traits<InputIterator>::value_type
                         >
                     >
                 >
@@ -74,11 +74,26 @@ namespace Containers
         Trie<T>& operator=(Trie<T>&& other) = default;
 
 
-        iterator begin() { return iterator{m_root}; }
-        const_iterator begin() const;
+        iterator begin()
+        {
+            std::shared_ptr<vertex_type> v = m_root;
+
+            while (v != nullptr && !(v->end_of_word())) v = v->next();
+
+            return iterator{v};
+        }
+
+        const_iterator begin() const
+        {
+            std::shared_ptr<vertex_type> v = m_root;
+
+            while (v != nullptr && !v->end_of_word()) v = v->next();
+
+            return const_iterator{v};
+        }
 
         iterator end() { return iterator{nullptr}; }
-        const_iterator end() const;
+        const_iterator end() const { return const_iterator{nullptr}; }
 
         bool empty() const noexcept { return m_size == 0; }
 
@@ -90,7 +105,6 @@ namespace Containers
 
             if (vertex == nullptr)
             {
-                // throw std::runtime_error("Key not found:" + key);
                 insert(key, value_type{});
                 vertex = find_vertex(key);
             }
@@ -121,6 +135,9 @@ namespace Containers
 
             // 2. Write value
             bool new_data = curr_vertex->write_data(key, value);
+
+            if (new_data) ++m_size;
+
             return std::pair<iterator, bool>{iterator{curr_vertex}, new_data};
 
         }
@@ -131,9 +148,9 @@ namespace Containers
                             std::input_iterator_tag,
                             typename std::iterator_traits<InputIterator>::iterator_category
                         > &&
-                        std::is_same_v<
-                            typename std::iterator_traits<InputIterator>::value_type,
-                            std::pair<const key_type, value_type>
+                        std::is_convertible_v<
+                            std::pair<key_type, value_type>,
+                            typename std::iterator_traits<InputIterator>::value_type
                         >
                     >
                 >
@@ -146,19 +163,54 @@ namespace Containers
             }
         }
 
-        void erase(iterator position);
+        void erase(iterator position)
+        {
+            if (position == end())
+                throw std::runtime_error("Invalid iterator: cannot erase item at the end() position.");
 
-        size_type erase(const key_type& key);
+            position.vertex()->release_data();
+            --m_size;
+        }
 
-        void erase(iterator first, iterator last);
+        size_type erase(const key_type& key)
+        {
+            auto position = find(key);
 
-        void swap(Trie<T>& other);
+            if (position == end())
+            {
+                // throw std::runtime_error("Invalid key: key is not found in trie.");
+                return 0;
+            }
 
-        void clear();
+            erase(position);
+
+            return 1;
+        }
+
+        void erase(iterator first, iterator last)
+        {
+            while (first != last)
+            {
+                erase(first);
+                ++first;
+            }
+        }
+
+        void swap(Trie<T>& other)
+        {
+            std::swap(m_root, other.m_root);
+            std::swap(m_size, other.m_size);
+        }
+
+        void clear()
+        {
+            m_root = nullptr;
+            m_size = 0;
+        }
 
         iterator find(const key_type& key) { return iterator{find_vertex(key)}; }
 
-        const_iterator find(const key_type& key) const;
+        const_iterator find(const key_type& key) const { return const_iterator{find_vertex(key)}; }
 
         _Impl::SubTrie<T> GetSubTrie(const key_type& key);
 
@@ -169,8 +221,12 @@ namespace Containers
 
         std::shared_ptr<vertex_type> find_vertex(const key_type& key)
         {
+            if (m_root == nullptr)
+                    return nullptr;
+
             auto it = key.begin();
             std::shared_ptr<vertex_type> curr_vertex = m_root;
+
             while (it != key.end())
             {
                 std::shared_ptr<vertex_type> child_vertex = curr_vertex->child_with_symbol(*it);
@@ -199,20 +255,7 @@ namespace Containers
 
             Vertex() = delete;
 
-            /*
-            Когда мы создаем новую вершину?
-            Создаем промежуточную вершину без значения, только с символом
-            Создаем вершину со значением
-            */
-
             Vertex(const char _s, std::shared_ptr<Vertex<T>> _parent) : m_symbol{_s}, m_parent{_parent} {}
-
-            // Vertex(const key_type& key, const T& _data, std::shared_ptr<Vertex<T>> _parent) 
-            //     : m_symbol{_s}, 
-            //       m_data{std::make_shared<std::pair<const key_type, T>>(key, _data)},
-            //       m_parent{_parent},
-            //       m_end_of_word{true}
-            // {}
 
             Vertex(const Vertex&) = default;
             Vertex& operator=(const Vertex&) = default;
@@ -224,11 +267,13 @@ namespace Containers
                 if (m_data == nullptr)
                 {
                     m_data = std::make_shared<std::pair<const key_type, T>>(key, _data);
+                    m_end_of_word = true;
                     return true;
                 }
                 else
                 {
                     m_data->second = _data;
+                    m_end_of_word = true;
                     return false;
                 }
             }
@@ -324,7 +369,7 @@ namespace Containers
             // Почему мы вообще можем тут инициализировать поля?
             char m_symbol{};
             std::shared_ptr<std::pair<const key_type, T>> m_data{};
-            std::shared_ptr<Vertex<T>> m_parent{};
+            std::weak_ptr<Vertex<T>> m_parent{};
             std::map<char, std::shared_ptr<Vertex<T>>> m_children{};
             bool m_end_of_word = false;
         };
@@ -335,8 +380,12 @@ namespace Containers
         class Iterator
         {
         public:
-            using value_type = std::pair<const std::string, T&>;
+            friend class Trie<T>;
+
+            using value_type = std::pair<const std::string, T>;
             using pointer = value_type*;
+
+            Iterator() = default;
 
             Iterator(std::shared_ptr<Vertex<T>> _vertex) : m_vertex{_vertex} {}
 
@@ -348,6 +397,8 @@ namespace Containers
 
             Iterator& operator++()
             {
+                if (m_vertex != nullptr) m_vertex = m_vertex->next();
+
                 while ((m_vertex != nullptr) && (!m_vertex->end_of_word()))
                     m_vertex = m_vertex->next();
                 return *this;
@@ -360,12 +411,16 @@ namespace Containers
                 return tmp;
             }
 
-            bool operator==(const Iterator& other)
+            bool operator==(const Iterator& other) const
             {
-                return (*m_vertex == *(other.m_vertex));
+                if (m_vertex == nullptr && other.m_vertex == nullptr) return true;
+
+                else if (m_vertex == nullptr || other.m_vertex == nullptr) return false;
+
+                else return (*m_vertex == *(other.m_vertex));
             }
 
-            bool operator!=(const Iterator& other)
+            bool operator!=(const Iterator& other) const 
             {
                 return !(*this == other);
             }
@@ -381,75 +436,9 @@ namespace Containers
             }
 
         private:
-            // const Trie<T>* m_trie = nullptr;
-            // std::pair<std::string, T&> m_obj{};
             std::shared_ptr<Vertex<T>> m_vertex{};
 
-            // std::shared_ptr<Vertex<T>> next_vertex()
-            // {
-            //     /*
-            //     Этот метод находит и возвращает следующую по порядку вершину дерева, не зависимо
-            //     от того, является она концом ключа или нет. Если метод дойдет до конца дерева, так
-            //     и не найдя вершины, то он вернет nullptr
-            //     */
-
-            //     /*
-            //     Какие могут быть случаи:
-            //     У текущей вершины есть непройденные дочерние вершины:
-            //         1) Идём к первой непройденной вершине в массиве дочерних
-            //     Нет непройденных дочерних вершин:
-            //         2) Есть родительская вершина - идем к ней и от неё в следующую дочернюю
-            //         3) Нет родительской - значит мы в корне дерева, то есть обход завершен.
-
-            //     Условие для прекращение работы алгоритма:
-            //     Мы дошли до корневой вершины, и у неё все дочерние были пройдены.
-
-            //     Шаги следующие.
-            //     1) берем первую непройденную верщину из дочерних, если таковая имеется
-            //     2) Если таких нет, то возвращаемся к родительской и выполняем пункт 1)
-            //     уже для родительской вершины. Если вдруг родительской нет, это значит 
-            //     что мы дошли до конца дерева
-            //     */
-
-            //     char current_symbol = 0;
-            //     std::shared_ptr<Vertex<T>> next_vertex{};
-            //     std::shared_ptr<Vertex<T>> checking_vertex = m_vertex;
-
-            //     bool finish = false;
-            //     while (!finish)
-            //     {
-            //         for (auto& [symbol, v] : checking_vertex->children())
-            //         {
-            //             if (symbol > current_symbol)
-            //             {
-            //                 next_vertex = v;
-            //                 break;
-            //             }
-            //         }
-
-            //         if (next_vertex != nullptr)
-            //         {
-            //             // Нашли непройденную вершину
-            //             finish = true;
-            //         }
-            //         else // Дочерних вершин нет
-            //         {
-            //             // Если есть родительская, то перемещаемся к ней
-            //             if (checking_vertex->parent() != nullptr)
-            //             {
-            //                 current_symbol = checking_vertex->symbol();
-            //                 checking_vertex = checking_vertex->parent();
-            //             }
-            //             else 
-            //             {
-            //                 // Тут алгоритм заканчивает работу
-            //                 finish = true;
-            //             }
-            //         }
-            //     }
-
-            //     return next_vertex;
-            // }
+            std::shared_ptr<Vertex<T>> vertex() { return m_vertex; }
         };
 
 
@@ -457,8 +446,57 @@ namespace Containers
         // class ConstIterator : public std::iterator<std::forward_iterator_tag, std::pair<std::string, T&>>
         class ConstIterator
         {
+        public:
+            using value_type = const std::pair<const std::string, T>;
+            using pointer = const value_type*;
 
+            ConstIterator(std::shared_ptr<Vertex<T>> _vertex)
+            {
+                m_iterator = Iterator(_vertex);
+            }
+
+            ConstIterator(const ConstIterator& other) = default;
+            ConstIterator& operator=(const ConstIterator& other) = default;
+            
+            ConstIterator(ConstIterator&& other) = default;
+            ConstIterator& operator=(ConstIterator&& other) = default;
+
+            ConstIterator& operator++()
+            {
+                ++m_iterator;
+                return *this;
+            }
+
+            ConstIterator operator++(int)
+            {
+                auto tmp = *this;
+                ++*this;
+                return tmp;
+            }
+
+            bool operator==(const ConstIterator& other) const
+            {
+                return (m_iterator == other.m_iterator);
+            }
+
+            bool operator!=(const ConstIterator& other) const
+            {
+                return !(*this == other);
+            }
+
+            value_type& operator*()
+            {
+                return *m_iterator;
+            }
+
+            pointer operator->()
+            {
+                return &(*m_iterator);
+            }
+
+
+        private:
+            Iterator<T> m_iterator{};
         };
-    
     }
 }
