@@ -48,7 +48,7 @@ TEST(FilterRange, HugeVector)
     Filter::Range range{pred, v.begin(), v.end()};
 
     int n = 1;
-    for (auto it : range)
+    for (auto& it : range)
     {
         EXPECT_EQ(pred(it), true);
         EXPECT_EQ(it, v[n]);
