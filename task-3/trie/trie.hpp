@@ -18,50 +18,39 @@
 
 namespace Containers
 {
-    namespace _Impl {
-
-        template <typename T> class Iterator;
-
-
-        template <typename T> class ConstIterator;
-
-
-        template <typename T> class Vertex;
-
-
-        template <typename T> class SubTrie;
-    
-    }
-
 
     template <typename T>
     class Trie
     {
     public:
-        using iterator = _Impl::Iterator<T>;
-        using const_iterator = _Impl::ConstIterator<T>;
-
-        using value_type = T;
         using key_type = std::string;
-
+        using mapped_type = T;
+        using value_type = std::pair<const key_type, mapped_type>;
         using size_type = size_t;
+        using reference = value_type&;
+        using const_reference = const value_type&;
+        using pointer = value_type*;
+        using const_pointer = const value_type*;
+        using iterator = Iterator<false>;
+        using const_iterator = Iterator<true>;
 
-        using vertex_type = _Impl::Vertex<T>;
+
+        template<typename _Iter>
+        concept InputIteratorConcept = std::is_base_of_v<
+                            std::input_iterator_tag,
+                            typename std::iterator_traits<_Iter>::iterator_category
+                        > &&
+                        std::is_convertible_v<
+                            std::pair<const key_type, value_type>,
+                            typename std::iterator_traits<_Iter>::value_type
+                        >;
+
+
+        // using vertex_type = _Impl::Vertex<T>;
 
         Trie() = default;
 
-        template <typename InputIterator,
-                    typename = std::enable_if_t<
-                        std::is_base_of_v<
-                            std::input_iterator_tag,
-                            typename std::iterator_traits<InputIterator>::iterator_category
-                        > &&
-                        std::is_convertible_v<
-                            std::pair<key_type, value_type>,
-                            typename std::iterator_traits<InputIterator>::value_type
-                        >
-                    >
-                >
+        template <InputIteratorConcept InputIterator>
         Trie(InputIterator first, InputIterator last)
         {
             insert(first, last);
@@ -82,20 +71,12 @@ namespace Containers
 
         iterator begin()
         {
-            std::shared_ptr<vertex_type> v = m_root;
-
-            while (v != nullptr && !(v->end_of_word())) v = v->next();
-
-            return iterator{v};
+            return iterator{first_node_with_value()};
         }
 
         const_iterator begin() const
         {
-            std::shared_ptr<vertex_type> v = m_root;
-
-            while (v != nullptr && !v->end_of_word()) v = v->next();
-
-            return const_iterator{v};
+            return const_iterator{first_node_with_value()};
         }
 
         iterator end() { return iterator{nullptr}; }
@@ -105,17 +86,17 @@ namespace Containers
 
         size_type size() const noexcept { return m_size; }
 
-        value_type& operator[](const key_type& key)
+        mapped_type& operator[](const key_type& key)
         {
-            auto vertex = find_vertex(key);
+            auto it = find(key);
 
-            if (vertex == nullptr)
+            if (it == end())
             {
-                insert(key, value_type{});
-                vertex = find_vertex(key);
+                auto new_it = insert(key, value_type{}).first;
+                return (*new_it).second;
             }
 
-            return vertex->value();
+            return (*it).second;;
         }
 
         std::pair<iterator, bool> insert(const key_type& key, const value_type& value)
@@ -148,18 +129,7 @@ namespace Containers
 
         }
 
-        template <typename InputIterator,
-                    typename = std::enable_if_t<
-                        std::is_base_of_v<
-                            std::input_iterator_tag,
-                            typename std::iterator_traits<InputIterator>::iterator_category
-                        > &&
-                        std::is_convertible_v<
-                            std::pair<key_type, value_type>,
-                            typename std::iterator_traits<InputIterator>::value_type
-                        >
-                    >
-                >
+        template <InputIteratorConcept InputIterator>
         void insert(InputIterator first, InputIterator last)
         {
             while (first != last)
@@ -222,8 +192,17 @@ namespace Containers
 
 
     private:
-        std::shared_ptr<vertex_type> m_root{};
+        std::shared_ptr<Node> m_root{};
         size_type m_size = 0;
+
+        std::shared_ptr<Node> first_node_with_value()
+        {
+            if (m_root == nullptr) return nullptr;
+
+            if (m_root->has_value()) return m_root;
+
+            return m_root->next_node_with_value();
+        }
 
         std::shared_ptr<vertex_type> find_vertex(const key_type& key)
         {
@@ -246,13 +225,152 @@ namespace Containers
 
             return curr_vertex;
         }
+
+
+        class SubTrie {};
+
+
+        class Node : public std::enable_shared_from_this<Node>
+        {
+        public:
+            static std::shared_ptr<Node> create(const key_type& key, std::weak_ptr<Node> parent = {})
+            {
+                auto node = std::make_shared<Node>(key, parent);
+                return node;
+            }
+
+            Node(const Node&) = delete;
+            Node& operator=(const Node&) = delete;
+            Node(Node&&) = delete;
+            Node& operator=(Node&&) = delete;
+
+            bool insert(const key_type& key, const mapped_type& value)
+            {
+                if (key == m_data.first)
+                {
+                    m_data.second = value;
+
+                    bool new_word = !m_has_value;
+                    m_has_value = true;
+                    return new_word;
+                }
+
+                char symbol = key[m_data.first.length()];
+                size_type index = static_cast<size_type>(static_cast<unsigned char>(symbol));
+
+                if (m_children[index] == nullptr)
+                    m_children[index] = create(m_data.first + symbol, std::weak_ptr<Node>(shared_from_this()));
+
+                ++values;
+                return m_children[index]->insert(key, value);
+            }
+
+            std::shared_ptr<Node> next_node_with_value()
+            {
+                std::shared_ptr<Node> n = next();
+
+                while (n != nullptr && !(n->has_value())) 
+                    n = n->next();
+                
+                return n;
+            }
+
+            reference data() { return m_data; }
+            pointer pdata() { return &m_data; }
+
+            bool has_value() { return m_has_value; }
+
+        private:
+            value_type m_data{};
+            std::weak_ptr<Node> m_parent{};
+            std::array<std::shared_ptr<Node>, 256> m_children{};
+            bool m_has_value = false;
+
+            // values - сколько элементов хранят потомки. Если values == 0,
+            // то удаляем всех потомков
+            int values = 0;
+
+            Node(const key_type& key, std::weak_ptr<Node> parent)
+            {
+                // m_data = std::pair<const key_type, T>{key, T()};
+                m_data = {key, mapped_type()};
+                m_parent = parent;
+            }
+
+            char symbol() { return m_data.first[m_data.first.length() - 1]; }
+
+            std::shared_ptr<Node> next()
+            {
+                return recoursive_next(0);
+            }
+
+            std::shared_ptr<Node> recoursive_next(size_type index = 0)
+            {
+                for (size_type i = index; i < m_children.size(); i++)
+                {
+                    if (m_children[i] != nullptr) return m_children[i];
+                }
+
+                if (m_parent == nullptr) return nullptr;
+
+                return m_parent->recoursive_next(static_cast<size_type>(static_cast<unsigned char>(symbol())) + 1);
+            }
+        };
+
+
+        template <bool const_iter>
+        class Iterator
+        {
+        public:
+            Iterator(std::shared_ptr<Node> node) : m_node{node} {}
+
+            Iterator& operator++()
+            {
+                if (m_node != nullptr) m_node = m_node->next_node_with_value();
+
+                return *this;
+            }
+
+            Iterator operator++(int)
+            {
+                auto tmp = *this;
+                ++*this;
+                return tmp;
+            }
+
+            bool operator==(const Iterator& other) const
+            {
+                return m_node == other.m_node;
+            }
+
+            bool operator!=(const Iterator& other) const 
+            {
+                return !(*this == other);
+            }
+
+            std::conditional<const_iter, const reference, reference>::type  operator*()
+            {
+                if (m_node == nullptr) throw std::runtime_error("Cannot dereference the nullptr.");
+
+                return m_node->data();
+            }
+
+            std::conditional<const_iter, const pointer, pointer>::type operator->()
+            {
+                if (m_node == nullptr) throw std::runtime_error("Cannot dereference the nullptr.");
+
+                return m_node->pdata();
+            }
+
+        private:
+            std::shared_ptr<Node> m_node = nullptr;
+        };
+
     };
 
 
     namespace _Impl {
-
-        template <typename T>
-        class SubTrie {};
+        
 
         template <typename T> class Vertex
         {
