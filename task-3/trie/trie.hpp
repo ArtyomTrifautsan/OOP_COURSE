@@ -10,6 +10,12 @@
 #include <type_traits>
 
 
+/*
+1) Добавить member types как в std::map (mapped_type, key_type и тд.)
+2) Перенести _Impl в приватную часть Trie
+3) SFINAE поменять на один концепт
+*/
+
 namespace Containers
 {
     namespace _Impl {
@@ -62,16 +68,16 @@ namespace Containers
         }
 
 
-        Trie(const Trie<T>& other) = default;
+        Trie(const Trie& other) = default;
 
 
-        Trie<T>& operator=(const Trie<T>& other) = default;
+        Trie& operator=(const Trie& other) = default;
 
 
-        Trie(Trie<T>&& other) = default;
+        Trie(Trie&& other) = default;
 
 
-        Trie<T>& operator=(Trie<T>&& other) = default;
+        Trie& operator=(Trie&& other) = default;
 
 
         iterator begin()
@@ -208,7 +214,7 @@ namespace Containers
             m_size = 0;
         }
 
-        iterator find(const key_type& key) { return iterator{find_vertex(key)}; }
+        iterator find(const key_type& key) { return iterator{find_vertex(key)};  } // использовать тут stdd::find_if
 
         const_iterator find(const key_type& key) const { return const_iterator{find_vertex(key)}; }
 
@@ -442,6 +448,7 @@ namespace Containers
         };
 
 
+        // std::conditional - добавить
         template <typename T>
         // class ConstIterator : public std::iterator<std::forward_iterator_tag, std::pair<std::string, T&>>
         class ConstIterator
