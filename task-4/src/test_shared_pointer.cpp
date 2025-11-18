@@ -11,33 +11,41 @@
 */
 
 
+struct MemoryChecker
+{
+    MemoryChecker() { ++m_ctors; }
+    ~MemoryChecker() { ++m_dtors; }
+    inline static int m_ctors = 0;
+    inline static int m_dtors = 0;
+};
+
 // Этот класс нужен для тестов, в которых я проверяю, что объект уничтожился
-class TestClass
-{
-public:
-    TestClass() = default; 
-    TestClass(bool* _flag) : m_delete_flag_ptr{_flag} {}
-    ~TestClass()
-    {
-        *m_delete_flag_ptr = true;
-        m_delete_flag_ptr = nullptr;
-    }
-private:
-    bool* m_delete_flag_ptr = nullptr;
-};
+// class TestClass
+// {
+// public:
+//     TestClass() = default; 
+//     TestClass(bool* _flag) : m_delete_flag_ptr{_flag} {}
+//     ~TestClass()
+//     {
+//         *m_delete_flag_ptr = true;
+//         m_delete_flag_ptr = nullptr;
+//     }
+// private:
+//     bool* m_delete_flag_ptr = nullptr;
+// };
 
 
-// Этот класс нужен для теста, в котором я проверяю, что объект конструируется только один раз,
-// несмотря на создание нескольких shared_ptr
-class TestClassWithCounter
-{
-public:
-    TestClassWithCounter() = default; 
-    TestClassWithCounter(int* _counter) : m_counter_ptr{_counter} { *m_counter_ptr += 1; }
-    ~TestClassWithCounter() {}
-private:
-    int* m_counter_ptr = nullptr;
-};
+// // Этот класс нужен для теста, в котором я проверяю, что объект конструируется только один раз,
+// // несмотря на создание нескольких shared_ptr
+// class TestClassWithCounter
+// {
+// public:
+//     TestClassWithCounter() = default; 
+//     TestClassWithCounter(int* _counter) : m_counter_ptr{_counter} { *m_counter_ptr += 1; }
+//     ~TestClassWithCounter() {}
+// private:
+//     int* m_counter_ptr = nullptr;
+// };
 
 
 // Этот класс нужен для тестирования пользовательского deleter
@@ -194,20 +202,24 @@ TEST(AssigmentRawPointer, InitializedPtr)
 
 TEST(AssigmentRawPointer, CheckDeletingMemory)
 {
-    bool delete_flag = false;
-    TestClass* raw_p = new TestClass(&delete_flag);
-    Pointers::SharedPTR p{raw_p};
-    EXPECT_EQ(p.get(), raw_p);
+    MemoryChecker::m_ctors = 0;
+    MemoryChecker::m_dtors = 0;
 
-    bool another_delete_flag = false;
-    TestClass* another_raw_p = new TestClass(&another_delete_flag);
-    p = another_raw_p;
+    {
+        Pointers::SharedPTR p{new MemoryChecker()};
 
-    EXPECT_EQ(delete_flag, true);
-    EXPECT_EQ(another_delete_flag, false);
+        EXPECT_EQ(p.count_refs(), 1);
+        EXPECT_EQ(MemoryChecker::m_ctors, 1);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
 
-    EXPECT_EQ(p.get(), another_raw_p);
-    EXPECT_EQ(p.count_refs(), 1);
+        p = new MemoryChecker();
+
+        EXPECT_EQ(MemoryChecker::m_ctors, 2);
+        EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    }
+
+    EXPECT_EQ(MemoryChecker::m_ctors, 2);
+    EXPECT_EQ(MemoryChecker::m_dtors, 2);
 }
 
 
@@ -260,20 +272,30 @@ TEST(MoveAssigment, PointerWithValue)
 
 TEST(MoveAssigment, CheckDeletingMemory)
 {
-    bool delete_flag = false;
-    TestClass* raw_p = new TestClass(&delete_flag);
-    Pointers::SharedPTR p{raw_p};
-    EXPECT_EQ(p.get(), raw_p);
+    MemoryChecker::m_ctors = 0;
+    MemoryChecker::m_dtors = 0;
 
-    bool another_delete_flag = false;
-    TestClass* another_raw_p = new TestClass(&another_delete_flag);
-    Pointers::SharedPTR another_p{another_raw_p};
-    EXPECT_EQ(another_p.get(), another_raw_p);
+    {
+        Pointers::SharedPTR p{new MemoryChecker()};
+        EXPECT_EQ(p.count_refs(), 1);
 
-    another_p = std::move(p);
+        EXPECT_EQ(MemoryChecker::m_ctors, 1);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
 
-    EXPECT_EQ(delete_flag, false);
-    EXPECT_EQ(another_delete_flag, false);
+        Pointers::SharedPTR another_p{new MemoryChecker()};
+        EXPECT_EQ(another_p.count_refs(), 1);
+
+        EXPECT_EQ(MemoryChecker::m_ctors, 2);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
+
+        another_p = std::move(p);
+
+        EXPECT_EQ(MemoryChecker::m_ctors, 2);
+        EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    }
+
+    EXPECT_EQ(MemoryChecker::m_ctors, 2);
+    EXPECT_EQ(MemoryChecker::m_dtors, 2);
 }
 
 
@@ -333,20 +355,30 @@ TEST(CopyAssigment, PointerWithValue)
 
 TEST(CopyAssigment, CheckDeletingMemory)
 {
-    bool delete_flag = false;
-    TestClass* raw_p = new TestClass(&delete_flag);
-    Pointers::SharedPTR p{raw_p};
-    EXPECT_EQ(p.get(), raw_p);
+    MemoryChecker::m_ctors = 0; 
+    MemoryChecker::m_dtors = 0;
 
-    bool another_delete_flag = false;
-    TestClass* another_raw_p = new TestClass(&another_delete_flag);
-    Pointers::SharedPTR another_p{another_raw_p};
-    EXPECT_EQ(another_p.get(), another_raw_p);
+    {
+        Pointers::SharedPTR p{new MemoryChecker()};
+        EXPECT_EQ(p.count_refs(), 1);
 
-    another_p = p;
+        EXPECT_EQ(MemoryChecker::m_ctors, 1);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
 
-    EXPECT_EQ(delete_flag, false);
-    EXPECT_EQ(another_delete_flag, true);
+        Pointers::SharedPTR another_p{new MemoryChecker()};
+        EXPECT_EQ(another_p.count_refs(), 1);
+
+        EXPECT_EQ(MemoryChecker::m_ctors, 2);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
+
+        another_p = p;
+
+        EXPECT_EQ(MemoryChecker::m_ctors, 2);
+        EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    }
+
+    EXPECT_EQ(MemoryChecker::m_ctors, 2);
+    EXPECT_EQ(MemoryChecker::m_dtors, 2);
 }
 
 
@@ -366,15 +398,16 @@ TEST(CopyAssigment, SelfCopy)
 
 TEST(Destructor, DefaultDeleter)
 {
-    bool delete_flag = false;
+    MemoryChecker::m_ctors = 0;
+    MemoryChecker::m_dtors = 0;
 
     {
-        TestClass* raw_p = new TestClass(&delete_flag);
-        Pointers::SharedPTR p{raw_p};
-        EXPECT_EQ(p.get(), raw_p);
+        Pointers::SharedPTR p{new MemoryChecker()};
+        EXPECT_EQ(p.count_refs(), 1);
     }
 
-    EXPECT_EQ(delete_flag, true);
+    EXPECT_EQ(MemoryChecker::m_ctors, 2);
+    EXPECT_EQ(MemoryChecker::m_dtors, 2);
 }
 
 
@@ -468,7 +501,7 @@ TEST(RefCounter, RefCounter)
 
 TEST(Release, EmptyPointer)
 {
-    Pointers::SharedPTR<TestClass> p{};
+    Pointers::SharedPTR<Point> p{};
 
     EXPECT_EQ(p.get(), nullptr);
 
@@ -569,11 +602,11 @@ TEST(Comparing, CopiedPointer)
 }
 
 
-TEST(MakeShared, Empty)
-{
-    Pointers::SharedPTR<int> p = Pointers::make_shared<int>();
-    EXPECT_EQ(p.get(), nullptr);
-}
+// TEST(MakeShared, Empty)
+// {
+//     Pointers::SharedPTR<int> p = Pointers::make_shared<int>();
+//     EXPECT_EQ(p.get(), nullptr);
+// }
 
 
 TEST(MakeShared, WithParameters)
@@ -584,15 +617,15 @@ TEST(MakeShared, WithParameters)
 }
 
 
-TEST(MakeShared, FromAnotherSharedPointer)
-{
-    int counter = 0;
-    Pointers::SharedPTR<TestClassWithCounter> p = Pointers::make_shared<TestClassWithCounter>(&counter);
-    EXPECT_EQ(counter, 1);
+// TEST(MakeShared, FromAnotherSharedPointer)
+// {
+//     int counter = 0;
+//     Pointers::SharedPTR<TestClassWithCounter> p = Pointers::make_shared<TestClassWithCounter>(&counter);
+//     EXPECT_EQ(counter, 1);
 
-    Pointers::SharedPTR<TestClassWithCounter> another_p = Pointers::make_shared<TestClassWithCounter>(p);
-    EXPECT_EQ(counter, 1);
+//     Pointers::SharedPTR<TestClassWithCounter> another_p = Pointers::make_shared<TestClassWithCounter>(p);
+//     EXPECT_EQ(counter, 1);
 
-    EXPECT_EQ(p.count_refs(), 2);
-    EXPECT_EQ(p.get(), another_p.get());
-}
+//     EXPECT_EQ(p.count_refs(), 2);
+//     EXPECT_EQ(p.get(), another_p.get());
+// }

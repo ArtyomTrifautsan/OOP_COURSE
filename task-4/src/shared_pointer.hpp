@@ -3,80 +3,51 @@
 #include <utility>
 #include <iostream>
 #include <type_traits>
+#include <stdexcept>
 
 
 namespace Pointers {
 
     namespace _Impl {
 
-        template<typename Type>
-        class BaseDeleter
-        {
-        public:
-            void operator()(Type* ptr) const noexcept { delete ptr; }
-        };
-
-        // std::default_deleter<T> -- заменить
-        template <typename Type, typename TDeleter = BaseDeleter<Type>>
+        template <typename Type, typename TDeleter = std::default_delete<Type>>
         class ControlBlock
         {
         public:
 
-            ControlBlock(Type* _obg, TDeleter _deleter = {}) : m_deleter{_deleter}, m_shared_ref_counter{1}
+            ControlBlock(Type* _obg, TDeleter _deleter = {}) : m_deleter{_deleter}, m_ref_counter{1}
             {
                 m_obj_ptr = _obg;
             }
 
-            // template <typename... Args>
-            // ControlBlock(Args&&... args) : m_shared_ref_counter{1}
-            // {
-            //     m_obj_ptr = new Type(std::forward<Args>(args)...);
-            // }
-
             ~ControlBlock()
             {
+                m_deleter(m_obj_ptr);
             }
 
-            void add_shared_ref() noexcept { ++m_shared_ref_counter; }
+            void add_ref() noexcept { ++m_ref_counter; }
 
-            void remove_shared_ref() noexcept 
+            void remove_ref() noexcept
             {
-                --m_shared_ref_counter; 
+                --m_ref_counter;
 
-                if (m_shared_ref_counter == 0)
-                    m_deleter(m_obj_ptr);
-
-                if (m_shared_ref_counter == 0 && m_weak_ref_counter == 0)
-                    delete this;
-            }
-
-            void add_weak_ref() noexcept { ++m_weak_ref_counter; }
-
-            void remove_weak_ref() noexcept 
-            {
-                --m_weak_ref_counter;
-
-                if (m_shared_ref_counter == 0 && m_weak_ref_counter == 0)
+                if (m_ref_counter == 0)
                     delete this;
             }
 
             Type* get_obj_ptr() noexcept { return m_obj_ptr; }
 
-            int count_shared_refs() const noexcept { return m_shared_ref_counter; }
+            int count_refs() const noexcept { return m_ref_counter; }
 
         private:
             Type* m_obj_ptr = nullptr;
             TDeleter m_deleter;
-            int m_shared_ref_counter = 0;       // Или size_t?
-            int m_weak_ref_counter = 0;         // Или size_t?
+            int m_ref_counter = 0;       // Или size_t?
         };
-
-
-        
 
     };
 
-    template<typename Type, typename TDeleter = _Impl::BaseDeleter<Type>>
+    template<typename Type, typename TDeleter = std::default_delete<Type>>
     class SharedPTR {
         using t_SharedPTR = SharedPTR<Type, TDeleter>;
 
@@ -103,14 +74,14 @@ namespace Pointers {
             if (other.m_control_block == nullptr) return;
 
             m_control_block = other.m_control_block;
-            m_control_block->add_shared_ref();
+            m_control_block->add_ref();
         }
 
         ~SharedPTR()
         {
             if (m_control_block == nullptr) return;
 
-            m_control_block->remove_shared_ref();
+            m_control_block->remove_ref();
         }
 
     public: // Assignment.
@@ -127,8 +98,11 @@ namespace Pointers {
 
         t_SharedPTR& operator=(Type *pObj)
         {
+            // if (pObj == m_control_block->get_obj_ptr())
+            //     throw std::runtime_error("SharedPTR already have this pointer");
+
             if (m_control_block != nullptr && pObj == m_control_block->get_obj_ptr())
-                return *this;
+                throw std::runtime_error("SharedPTR already have this pointer");
 
             release();
 
@@ -148,7 +122,7 @@ namespace Pointers {
             if (other.m_control_block != nullptr)
             {
                 m_control_block = other.m_control_block;
-                m_control_block->add_shared_ref();
+                m_control_block->add_ref();
             }
 
             return *this;
@@ -176,7 +150,7 @@ namespace Pointers {
         {
             if (m_control_block == nullptr) return 0;
 
-            return m_control_block->count_shared_refs();
+            return m_control_block->count_refs();
         }
 
     public: // Modifiers.
@@ -185,7 +159,7 @@ namespace Pointers {
         {
             if (m_control_block == nullptr) return;
 
-            m_control_block->remove_shared_ref();
+            m_control_block->remove_ref();
             m_control_block = nullptr;
         }
 
@@ -219,10 +193,7 @@ namespace Pointers {
     };
 
 
-
-
     template<typename Type, typename... Args>
-    requires (!std::is_same_v<Args, SharedPTR<Type, _Impl::BaseDeleter<Type>>&> && ...)
     auto make_shared(Args&&... args)
     // auto make_shared(Args&&... args) -> std::enable_if_t<(sizeof...(Args) > 0) && !std::is_same_v<std::decay>>
     {
@@ -240,5 +211,70 @@ namespace Pointers {
     }
 
 
+
+    // template<typename Type, typename... Args>
+    // requires (std::is_array_v<Type> == false)
+    // auto make_shared_pointer(Args&&... args) {
+    //     using PureType = std::remove_extent_t<Type>;
+    //     using DtorPureType = detail::Dtor<PureType>;
+
+    //     using Cblock = typename Shared_pointer<Type, DtorPureType>::ControlBlock;
+
+    //     void* memory = ::operator new(sizeof(PureType) + sizeof(Cblock));
+
+
+    //     PureType* p_obj = nullptr;
+    //     Cblock* p_block = nullptr;
+
+    //     try {
+    //         p_block = new(memory) Cblock(DtorPureType());
+    //         p_obj = new(static_cast<char*>(memory) + sizeof(Cblock)) Type(std::forward<Args>(args)...);
+
+    //         return Shared_pointer<Type, DtorPureType>(p_obj, p_block);
+    //     }
+    //     catch (...) {
+    //         if (p_obj) p_obj->~PureType();
+    //         if (p_block) p_block->~ControlBlock();
+    //         ::operator delete(memory);
+    //         throw;
+    //     }
+    // }
+
+    // template<typename Type>
+    //     requires std::is_array_v<Type>
+    // auto make_shared_pointer(std::size_t N) {
+    //     using PureType = std::remove_extent_t<Type>;
+    //     using DtorPureType = detail::Dtor<PureType[]>;
+    //     using Cblock = typename Shared_pointer<Type, DtorPureType>::ControlBlock;
+
+    //     if (N == 0) {
+    //         return Shared_pointer<Type, DtorPureType>(nullptr, nullptr);
+    //     }
+
+    //     void* memory = ::operator new(sizeof(PureType) * N + sizeof(Cblock));
+    //     PureType* p_obj = nullptr;
+    //     Cblock* p_block = nullptr;
+
+    //     try {
+    //         p_block = new(memory) Cblock(DtorPureType(N));
+    //         p_obj = reinterpret_cast<PureType*>(static_cast<char*>(memory) + sizeof(Cblock));
+
+    //         for (std::size_t i = 0; i < N; ++i) {
+    //             new(&p_obj[i]) PureType();
+    //         }
+
+    //         return Shared_pointer<Type, DtorPureType>(p_obj, p_block);
+    //     }
+    //     catch (...) {
+    //         if (p_obj) {
+    //             for (std::size_t i = 0; i < N; ++i) {
+    //                 p_obj[i].~PureType();
+    //             }
+    //         }
+    //         if (p_block) p_block->~Cblock();
+    //         ::operator delete(memory);
+    //         throw;
+    //     }
+    // }
 
 }
