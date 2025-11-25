@@ -123,6 +123,8 @@ namespace Pointers {
             // сравнить control_block'и тоже
             if (&other == this) return *this;
 
+            if (other.m_control_block == m_control_block) return *this;
+
             release();
 
             if (other.m_control_block != nullptr)

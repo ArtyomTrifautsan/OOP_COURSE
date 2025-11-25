@@ -220,6 +220,7 @@ TEST(SharedPTRAssigments, MoveAssigmentEmptyPointerToEmptyPointer)
 TEST(SharedPTRAssigments, MoveAssigmentValuePointerToEmptyPointer)
 {
     /*
+    (Assigments, MoveAssignedToEmpty)
     В названии теста ValuePointer имеется ввиду что указатель имеет какое-то не nullptr значение
     */
 
