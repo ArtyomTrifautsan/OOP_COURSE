@@ -18,6 +18,11 @@
 3) SFINAE поменять на один концепт
 */
 
+
+
+/*
+1) Добавить проверку итератора _Iter на соответствие стандартному концепту forward_iterator
+*/
 namespace Containers
 {
     template<typename _Iter, typename _ValueType>
@@ -427,6 +432,9 @@ namespace Containers
         class Iterator
         {
         public:
+        /*
+        перенести сюда std::condition
+        */
             using iterator_category = std::forward_iterator_tag;
             using value_type = Containers::Trie<T>::value_type;
             using difference_type = std::ptrdiff_t;
