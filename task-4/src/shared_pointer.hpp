@@ -22,7 +22,8 @@ namespace Pointers {
 
             ~ControlBlock()
             {
-                m_deleter(m_obj_ptr);
+                if (m_obj_ptr != nullptr)
+                    m_deleter(m_obj_ptr);
             }
 
             void add_ref() noexcept { ++m_ref_counter; }
@@ -32,7 +33,9 @@ namespace Pointers {
                 --m_ref_counter;
 
                 if (m_ref_counter == 0)
+                {
                     delete this;
+                }
             }
 
             Type* get_obj_ptr() noexcept { return m_obj_ptr; }
@@ -64,9 +67,10 @@ namespace Pointers {
 
         SharedPTR(t_SharedPTR&& other) noexcept
         {
-            if (other.m_control_block == nullptr) return;
+            
 
-            std::swap(m_control_block, other.m_control_block);
+            m_control_block = other.m_control_block;
+            other.m_control_block = nullptr;
         }
 
         SharedPTR(const t_SharedPTR& other)
@@ -87,11 +91,13 @@ namespace Pointers {
     public: // Assignment.
         t_SharedPTR& operator=(t_SharedPTR&& other) noexcept
         {
-            if (other == *this) return *this;
+            if (this == &other) return *this;
 
-            // release()    // Сомневаюсь что тут надо делать release()
+            release();
 
-            std::swap(m_control_block, other.m_control_block);
+            m_control_block = other.m_control_block;
+
+            other.m_control_block = nullptr;
 
             return *this;
         }
@@ -102,12 +108,12 @@ namespace Pointers {
             //     throw std::runtime_error("SharedPTR already have this pointer");
 
             if (m_control_block != nullptr && pObj == m_control_block->get_obj_ptr())
-                throw std::runtime_error("SharedPTR already have this pointer");
+                throw std::runtime_error("SharedPTR already have this pointer.");
 
-            release();
+            release();  
 
             if (pObj != nullptr) 
-                m_control_block = new _Impl::ControlBlock(pObj);
+                m_control_block = new _Impl::ControlBlock(pObj, TDeleter{});
 
             return *this;
         }
@@ -132,10 +138,22 @@ namespace Pointers {
     // Dereference the stored pointer.
 
         // Кидать исключение если m_control_block == nullptr
-        Type& operator*() const { return *(m_control_block->get_obj_ptr()); }
+        Type& operator*() const
+        {
+            if (m_control_block == nullptr)
+                throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
+
+            return *(m_control_block->get_obj_ptr());
+        }
 
         // Return the stored pointer.
-        Type* operator->() const { return m_control_block->get_obj_ptr(); }
+        Type* operator->() const
+        {
+            if (m_control_block == nullptr)
+                throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
+
+            return m_control_block->get_obj_ptr();
+        }
 
         // Return the stored pointer.
         Type* get() const
@@ -177,8 +195,6 @@ namespace Pointers {
         // Exchange the pointer with another object.
         void swap(t_SharedPTR& other)
         {
-            if (*this == other) return;
-
             std::swap(m_control_block, other.m_control_block);
         }
 
