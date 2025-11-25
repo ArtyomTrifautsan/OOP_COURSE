@@ -40,12 +40,12 @@ namespace Pointers {
 
             Type* get_obj_ptr() noexcept { return m_obj_ptr; }
 
-            int count_refs() const noexcept { return m_ref_counter; }
+            size_t count_refs() const noexcept { return m_ref_counter; }
 
         private:
             Type* m_obj_ptr = nullptr;
             TDeleter m_deleter;
-            int m_ref_counter = 0;       // Или size_t?
+            size_t m_ref_counter = 0;       // Или size_t?
         };
 
     };
