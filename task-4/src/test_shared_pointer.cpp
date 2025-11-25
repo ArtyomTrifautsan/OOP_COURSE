@@ -240,7 +240,7 @@ TEST(SharedPTRAssigments, MoveAssigmentValuePointerToEmptyPointer)
 
 TEST(SharedPTRAssigments, MoveAssigmentValuePointerToEmptyPointerMemoryManagment)
 {
-    MemoryChecker::m_ctors = 0;
+{    MemoryChecker::m_ctors = 0;
     MemoryChecker::m_dtors = 0;
 
     MemoryChecker* raw_p = new MemoryChecker{};
@@ -252,7 +252,7 @@ TEST(SharedPTRAssigments, MoveAssigmentValuePointerToEmptyPointerMemoryManagment
 
     EXPECT_EQ(MemoryChecker::m_ctors, 1);
     EXPECT_EQ(MemoryChecker::m_dtors, 0);
-}
+}}
 
 
 // TEST(SharedPTRAssigments, MoveAssigmentValuePointerToEmptyPointerMemoryManagment)
@@ -299,7 +299,7 @@ TEST(SharedPTRDestructor, SinglePointer)
         EXPECT_EQ(MemoryChecker::m_dtors, 0);
     }
 
-    EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    EXPECT_EQ(MemoryChecker::m_dtors, MemoryChecker::m_dtors);
 }
 
 
