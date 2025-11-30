@@ -215,9 +215,6 @@ namespace Containers
         public:
             SubTrie(std::shared_ptr<Node> r) : m_subtree_root{r}
             {
-                // m_begin = std::make_shared<const_iterator>(m_subtree_root);
-                // std::shared_ptr<Node> parent_ptr = m_subtree_root->parent().lock();
-                // m_end = std::make_shared<const_iterator>(parent_ptr);
             }
 
             SubTrie(const SubTrie&) = delete;
