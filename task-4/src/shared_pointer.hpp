@@ -51,19 +51,21 @@ namespace Pointers {
     };
 
 
-    namespace detail
-    {
+    // namespace detail
+    // {
 
-        class IControlBlock
-        {
-        public:
-            virtual void add_ref() = 0;
+    //     class IControlBlock
+    //     {
+    //     public:
+    //         virtual ~IControlBlock() = 0;
+    //         virtual void add_ref() = 0;
+    //         virtual void remove_ref() = 0;
 
-        private:
-            size_t m_ref_counter = 0;
-        };
+    //     private:
+    //         size_t m_ref_counter = 0;
+    //     };
 
-    }
+    // }
 
     template<typename Type, typename TDeleter = std::default_delete<Type>>
     class SharedPTR {
@@ -177,6 +179,11 @@ namespace Pointers {
         // Return false if the stored pointer is null.
         operator bool() const { return m_control_block != nullptr; }
 
+        friend bool operator==(const t_SharedPTR& first, const t_SharedPTR& second)
+        {
+            return first.m_control_block == second.m_control_block;
+        }
+
         int count_refs() const noexcept
         {
             if (m_control_block == nullptr) return 0;
@@ -212,11 +219,6 @@ namespace Pointers {
         void swap(t_SharedPTR& other)
         {
             std::swap(m_control_block, other.m_control_block);
-        }
-
-        friend bool operator==(const t_SharedPTR& first, const t_SharedPTR& second)
-        {
-            return first.m_control_block == second.m_control_block;
         }
 
 

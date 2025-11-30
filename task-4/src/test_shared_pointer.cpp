@@ -1981,6 +1981,25 @@ TEST(Reset, ArrayBigToSmall)
 }
 
 
+TEST(Reset, SamePointerThrowsException)
+{
+    int* raw = new int(123);
+    Pointers::SharedPTR<int> p(raw);
+    
+    try {
+        p.reset(raw);
+        FAIL() << "Expected std::runtime_error";
+    } catch (const std::runtime_error& e) {
+        EXPECT_STREQ("SharedPTR already have this pointer.", e.what());
+    }
+    
+    // Указатель должен остаться валидным
+    EXPECT_EQ(p.get(), raw);
+    EXPECT_EQ(*p, 123);
+    EXPECT_EQ(p.count_refs(), 1);
+}
+
+
 TEST(MakeShared, WithParameters)
 {
     Pointers::SharedPTR<Point> p = Pointers::make_shared<Point>(1, 2);
