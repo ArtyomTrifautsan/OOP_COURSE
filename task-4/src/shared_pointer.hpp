@@ -50,6 +50,21 @@ namespace Pointers {
 
     };
 
+
+    namespace detail
+    {
+
+        class IControlBlock
+        {
+        public:
+            virtual void add_ref() = 0;
+
+        private:
+            size_t m_ref_counter = 0;
+        };
+
+    }
+
     template<typename Type, typename TDeleter = std::default_delete<Type>>
     class SharedPTR {
         using t_SharedPTR = SharedPTR<Type, TDeleter>;
@@ -67,8 +82,6 @@ namespace Pointers {
 
         SharedPTR(t_SharedPTR&& other) noexcept
         {
-            
-
             m_control_block = other.m_control_block;
             other.m_control_block = nullptr;
         }
@@ -93,6 +106,9 @@ namespace Pointers {
         {
             if (this == &other) return *this;
 
+            // Вы сказали добавить эту строчку, но мне кажется это ломает логику работы
+            // if (m_control_block == other.m_control_block) return *this;
+
             release();
 
             m_control_block = other.m_control_block;
@@ -104,9 +120,6 @@ namespace Pointers {
 
         t_SharedPTR& operator=(Type *pObj)
         {
-            // if (pObj == m_control_block->get_obj_ptr())
-            //     throw std::runtime_error("SharedPTR already have this pointer");
-
             if (m_control_block != nullptr && pObj == m_control_block->get_obj_ptr())
                 throw std::runtime_error("SharedPTR already have this pointer.");
 
@@ -120,10 +133,9 @@ namespace Pointers {
 
         t_SharedPTR& operator=(const t_SharedPTR& other)
         {
-            // сравнить control_block'и тоже
-            if (&other == this) return *this;
+            if (this == &other) return *this;
 
-            if (other.m_control_block == m_control_block) return *this;
+            if (m_control_block == other.m_control_block) return *this;
 
             release();
 
@@ -139,7 +151,6 @@ namespace Pointers {
     public: // Observers.
     // Dereference the stored pointer.
 
-        // Кидать исключение если m_control_block == nullptr
         Type& operator*() const
         {
             if (m_control_block == nullptr)
@@ -187,11 +198,14 @@ namespace Pointers {
         void reset(Type *pObj = nullptr)
         {
             // кинуть если передали тот же самый указатель который уже хранится
+            if (m_control_block != nullptr && pObj == m_control_block->get_obj_ptr())
+                throw std::runtime_error("SharedPTR already have this pointer.");
+
             release();
 
             if (pObj == nullptr) return;
 
-            m_control_block = new _Impl::ControlBlock(pObj);
+            m_control_block = new _Impl::ControlBlock(pObj, TDeleter{});
         }
 
         // Exchange the pointer with another object.
