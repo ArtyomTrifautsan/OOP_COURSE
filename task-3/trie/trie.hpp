@@ -247,31 +247,34 @@ namespace Containers
         class Node : public std::enable_shared_from_this<Node>
         {
         public:
-            static std::shared_ptr<Node> create(size_type _pos, std::weak_ptr<Node> parent = {})
+            static std::shared_ptr<Node> create(const std::string& key, size_type _pos, std::weak_ptr<Node> parent = {})
             {
-                auto node = std::make_shared<Node>(_pos, parent);
+                auto node = std::make_shared<Node>(key, parent, _pos);
                 return node;
             }
 
-            Node(size_type _pos, std::weak_ptr<Node> parent) : m_node_position{_pos}, m_parent{parent} {}
+            Node(const std::string& key, std::weak_ptr<Node> parent, size_type _pos) : m_data{key, mapped_type{}}, m_parent{parent}, m_node_position{_pos} {}
 
             Node(const Node&) = delete;
             Node& operator=(const Node&) = delete;
             Node(Node&&) = delete;
             Node& operator=(Node&&) = delete;
 
-            std::pair<iterator, bool> insert(const key_type& prefix, const key_type& key, const mapped_type& value)
+            std::pair<iterator, bool> insert(const key_type& key, const mapped_type& value)
             {
-                check_prefix_is_correct(prefix, key);
+                // check_prefix_is_correct(prefix, key);
+                check_key_is_correct(key);
 
-                if (key == prefix)
+                if (key == m_data.first)
                 {
-                    m_data = std::make_shared<value_type>(key, value);
+                    // m_data = std::make_shared<value_type>(key, value);
+                    m_data.second = value;
 
                     bool new_word_flag = !m_has_value;
                     m_has_value = true;
 
-                    m_subtree_size += static_cast<int>(new_word_flag);
+                    if (new_word_flag)
+                        ++m_subtree_size;
 
                     return std::pair<iterator, bool>{iterator{this->shared_from_this()}, new_word_flag};
                 }
@@ -280,9 +283,9 @@ namespace Containers
                 size_type next_node_index = static_cast<size_type>(static_cast<unsigned char>(next_symbol));
 
                 if (m_children[next_node_index] == nullptr)
-                    m_children[next_node_index] = Node::create(next_node_index, std::weak_ptr<Node>(this->shared_from_this()));
+                    m_children[next_node_index] = Node::create(m_data.first + next_symbol, next_node_index, std::weak_ptr<Node>(this->shared_from_this()));
 
-                auto result = m_children[next_node_index]->insert(prefix + next_symbol, key, value);
+                auto result = m_children[next_node_index]->insert(key, value);
 
                 if (result.second)
                     ++m_subtree_size;
@@ -290,18 +293,22 @@ namespace Containers
                 return result;
             }
 
-            size_type erase(const key_type& prefix, const key_type& key)
+            size_type erase(const key_type& key)
             {
-                check_prefix_is_correct(prefix, key);
+                // check_prefix_is_correct(prefix, key);
+                check_key_is_correct(key);
 
-                if (key == prefix)
+                if (key == m_data.first)
                 {
                     m_data = nullptr;
 
-                    size_type erased = static_cast<size_type>(m_has_value);
-                    m_has_value = false;
-
-                    m_subtree_size -= erased;
+                    size_type erased = 0;
+                    if (m_has_value)
+                    {
+                        ++erased;
+                        m_has_value = false;
+                        --m_subtree_size;
+                    }
 
                     return erased;
                 }
@@ -325,11 +332,12 @@ namespace Containers
                 return erased;
             }
 
-            std::shared_ptr<Node> find(const key_type& prefix, const key_type& key)
+            std::shared_ptr<Node> find(const key_type& key)
             {
-                check_prefix_is_correct(prefix, key);
+                // check_prefix_is_correct(prefix, key);
+                check_key_is_correct(key);
 
-                if (key == prefix)
+                if (key == m_data.first)
                 {
                     if (m_has_value)
                         return this->shared_from_this();
@@ -356,8 +364,8 @@ namespace Containers
                 return n;
             }
 
-            reference data() { return *m_data; }
-            pointer pdata() { return m_data.get(); }
+            reference data() { return m_data; }
+            pointer pdata() { return &m_data; }
 
             bool has_value() const noexcept { return m_has_value; }
 
@@ -376,7 +384,7 @@ namespace Containers
             std::shared_ptr<Node> parent() { return m_parent.lock(); }
 
         private:
-            std::shared_ptr<value_type> m_data{};
+            value_type m_data{};
             std::weak_ptr<Node> m_parent{};
             std::array<std::shared_ptr<Node>, 256> m_children{};
             bool m_has_value = false;
@@ -422,6 +430,12 @@ namespace Containers
                 if (!key.starts_with(prefix))
                     throw std::runtime_error("Internal error. The algorithm chose the wrong path to the node with this key: " + key + ". The prefix: " + prefix + ".");
             }
+
+            void check_key_is_correct(const key_type& key) const
+            {
+                if (!key.starts_with(m_data.first))
+                    throw std::runtime_error("Internal error. The algorithm chose the wrong path to the node with this key: " + key + ". The prefix: " + prefix + ".");
+            }
         };
 
 
@@ -465,14 +479,14 @@ namespace Containers
                 return !(*this == other);
             }
 
-            std::conditional<const_iter, const reference, reference>::type  operator*()
+            reference  operator*()
             {
                 if (m_node == nullptr) throw std::runtime_error("Cannot dereference the iterator with nullptr.");
 
                 return m_node->data();
             }
 
-            std::conditional<const_iter, const pointer, pointer>::type operator->()
+            pointer operator->()
             {
                 if (m_node == nullptr) throw std::runtime_error("Cannot dereference the iterator with nullptr.");
 
