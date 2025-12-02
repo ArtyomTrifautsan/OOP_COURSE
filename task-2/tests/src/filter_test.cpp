@@ -6,6 +6,7 @@
 #include <map>
 #include <algorithm>
 #include <numeric>
+#include <functional>
 
 #include "filter_iterator.hpp"
 
