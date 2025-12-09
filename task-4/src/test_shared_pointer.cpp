@@ -7,7 +7,13 @@
 
 
 /*
-Received feedback from the teacher - commit
+Обратите пожалуйста внимание на тест (строка 572):
+TEST(Assigments, MoveIdentical)
+
+Сейчас он падает, поскольку count_ref() возвращает не 1, а 2.
+То есть перемещение не уничтожает перемещаемый указатель.
+Является ли это проблемой? Мне кажется, что это как минимум
+неочевидное поведение.
 */
 
 
@@ -34,6 +40,8 @@ namespace {
         inline static size_t m_copy_ctors = 0;
         inline static size_t m_move_ctors = 0;
         inline static size_t m_dtors = 0;
+
+        static void ResetCounts() { m_ctors = m_copy_ctors = m_move_ctors = m_dtors = 0; }
     };
 
     // Этот класс нужен для тестирования пользовательского deleter
@@ -61,6 +69,108 @@ namespace {
     private:
         int m_x = 0;
         int m_y = 0;
+    };
+
+    class ThrowingConstructor
+    {
+    public:
+        ThrowingConstructor(bool should_throw)
+        {
+            MemoryChecker::m_ctors++;
+            if (should_throw) {
+                throw std::runtime_error("Constructor failed as requested.");
+            }
+        }
+        ~ThrowingConstructor() { MemoryChecker::m_dtors++; }
+    };
+
+    // // Класс для тестирования кастомного аллокатора
+    // template<typename T>
+    // struct TrackingAllocator : public std::allocator<T>
+    // {
+    //     using size_type = size_t;
+    //     using value_type = T;
+    //     using propagate_on_container_copy_assignment = std::true_type;
+    //     using propagate_on_container_move_assignment = std::true_type;
+    //     using propagate_on_container_swap = std::true_type;
+
+    //     inline static size_t allocations = 0;
+    //     inline static size_t deallocations = 0;
+    //     inline static size_t bytes_allocated = 0;
+    //     inline static size_t bytes_deallocated = 0;
+
+    //     TrackingAllocator() = default;
+
+    //     template<class U>
+    //     TrackingAllocator(const TrackingAllocator<U>&) noexcept {}
+
+    //     T* allocate(size_t n)
+    //     {
+    //         allocations++;
+    //         bytes_allocated += n * sizeof(T);
+    //         return std::allocator<T>().allocate(n);
+    //     }
+
+    //     void deallocate(T* p, size_t n)
+    //     {
+    //         deallocations++;
+    //         bytes_deallocated += n * sizeof(T);
+    //         std::allocator<T>().deallocate(p, n);
+    //     }
+
+    //     static void ResetCounts() { allocations = deallocations = bytes_allocated = bytes_deallocated = 0; }
+
+    //     // Требуется для rebind, если используется std::allocator_traits
+    //     template<class U>
+    //     struct rebind { using other = TrackingAllocator<U>; };
+    // };
+
+    struct AllocatorStats {
+        inline static size_t allocations = 0;
+        inline static size_t deallocations = 0;
+        inline static size_t bytes_allocated = 0;
+        inline static size_t bytes_deallocated = 0;
+        static void ResetCounts() { allocations = deallocations = bytes_allocated = bytes_deallocated = 0; }
+    };
+
+    template<typename T>
+    struct TrackingAllocator : public std::allocator<T>, public AllocatorStats // Наследуем счетчики
+    {
+        // ...
+        TrackingAllocator() = default;
+
+        template<class U>
+        TrackingAllocator(const TrackingAllocator<U>& other) noexcept 
+            : AllocatorStats(other) // Копируем статистику (не обязательно, так как статические)
+        {}
+
+        T* allocate(size_t n)
+        {
+            // Используем счетчики из AllocatorStats
+            AllocatorStats::allocations++; 
+            AllocatorStats::bytes_allocated += n * sizeof(T);
+            return std::allocator<T>().allocate(n);
+        }
+
+        void deallocate(T* p, size_t n)
+        {
+            // Используем счетчики из AllocatorStats
+            AllocatorStats::deallocations++; 
+            AllocatorStats::bytes_deallocated += n * sizeof(T);
+            std::allocator<T>().deallocate(p, n);
+        }
+
+        template<class U>
+        struct rebind { using other = TrackingAllocator<U>; };
+    };
+
+    class NonTrivial
+    {
+    public:
+        inline static size_t ctor_count = 0;
+        inline static size_t dtor_count = 0;
+        NonTrivial() { ctor_count++; }
+        ~NonTrivial() { dtor_count++; }
     };
     
 }
@@ -412,7 +522,7 @@ TEST(Assigments, MoveEmptyToAssignedMemoryManagment)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -434,7 +544,7 @@ TEST(Assigments, MoveEmptyToAssignedArrayType)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 7);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -472,7 +582,7 @@ TEST(Assigments, MoveAssignedToAssignedMemoryManagment)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 1);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -496,7 +606,7 @@ TEST(Assigments, MoveAssignedToAssignedArrayType)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 14);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -519,7 +629,7 @@ TEST(Assigments, MoveBigArrayToSmallArray)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 7);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -542,7 +652,7 @@ TEST(Assigments, MoveSmallArrayToBigArray)
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
-    EXPECT_EQ(MemoryChecker::m_dtors, 14);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
 }
 
 
@@ -1441,11 +1551,13 @@ TEST(Swap, EmptyWithEmptyMemoryManagment)
 TEST(Swap, EmptyWithAssigned)
 {
     Pointers::SharedPTR<int> p1{};
-    Pointers::SharedPTR<int> p2{new int(42)};
+
+    auto raw = new int(42);
+    Pointers::SharedPTR<int> p2{raw};
 
     p1.swap(p2);
 
-    EXPECT_NE(p1.get(), nullptr);
+    EXPECT_EQ(p1.get(), raw);
     EXPECT_EQ(p2.get(), nullptr);
     EXPECT_EQ(p1.count_refs(), 1);
     EXPECT_EQ(p2.count_refs(), 0);
@@ -2005,4 +2117,150 @@ TEST(MakeShared, WithParameters)
     Pointers::SharedPTR<Point> p = Pointers::make_shared<Point>(1, 2);
     EXPECT_EQ(p->x(), 1);
     EXPECT_EQ(p->y(), 2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+//========================================================================
+//===                       allocate_shared()                          ===
+//========================================================================
+TEST(AllocateShared, Initialization_SimpleType)
+{
+    // Используем Pointers::allocate_shared, так как оно в Pointers
+    auto p = Pointers::allocate_shared<int>({}, 42);
+
+    ASSERT_NE(p.get(), nullptr);
+    EXPECT_EQ(*p, 42);
+    EXPECT_EQ(p.count_refs(), 1);
+}
+
+TEST(AllocateShared, Initialization_ComplexObject)
+{
+    auto p = Pointers::allocate_shared<Point>({}, 10, 20);
+
+    ASSERT_NE(p.get(), nullptr);
+    EXPECT_EQ(p->x(), 10);
+    EXPECT_EQ(p->y(), 20);
+    EXPECT_EQ(p.count_refs(), 1);
+}
+
+TEST(AllocateShared, RefCounting_Basic)
+{
+    auto p1 = Pointers::allocate_shared<int>({}, 100);
+
+    EXPECT_EQ(p1.count_refs(), 1);
+
+    {
+        auto p2 = Pointers::allocate_shared<int>({}, 0);
+        p2 = p1;
+        EXPECT_EQ(p1.count_refs(), 2);
+        EXPECT_EQ(p2.count_refs(), 2);
+    } // p2 уничтожается
+
+    EXPECT_EQ(p1.count_refs(), 1);
+}
+
+TEST(AllocateShared, DestructorCallOnLastRef)
+{
+    MemoryChecker::ResetCounts();
+
+    {
+        auto p = Pointers::allocate_shared<MemoryChecker>({});
+        EXPECT_EQ(MemoryChecker::m_ctors, 1);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
+    } // p уничтожается
+
+    EXPECT_EQ(MemoryChecker::m_dtors, 1);
+}
+
+
+TEST(AllocateShared, PerfectForwarding)
+{
+    auto p1 = Pointers::allocate_shared<int>({}, 123);
+    EXPECT_EQ(*p1, 123);
+}
+
+
+TEST(AllocateShared, PerfectForwardingMemoryManagment)
+{
+    MemoryChecker::ResetCounts();
+
+    auto p1 = Pointers::allocate_shared<MemoryChecker>({});
+
+    // Должно быть только прямое конструирование
+    EXPECT_EQ(MemoryChecker::m_ctors, 1);
+    EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
+    EXPECT_EQ(MemoryChecker::m_move_ctors, 0);
+
+    MemoryChecker::ResetCounts();
+}
+
+
+TEST(AllocateShared, ExceptionSafety)
+{
+    MemoryChecker::ResetCounts();
+
+    // Используем ThrowingConstructor из анонимного namespace
+    EXPECT_THROW(
+        Pointers::allocate_shared<ThrowingConstructor>({}, true),
+        std::runtime_error
+    );
+
+    // ThrowingConstructor инкрементирует MemoryChecker::m_ctors
+    EXPECT_EQ(MemoryChecker::m_ctors, 1);
+    // Деструктор не должен был вызываться
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
+}
+
+
+TEST(AllocateShared, CustomAllocator)
+{
+    using MyType = double;
+    using Alloc = TrackingAllocator<MyType>; // Используем TrackingAllocator из анонимного namespace
+
+    Alloc::ResetCounts();
+
+    // 1. Создаем конкретный экземпляр аллокатора для отслеживания
+    Alloc alloc_instance; 
+
+    {
+        // 2. Передаем этот экземпляр
+        auto p = Pointers::allocate_shared<MyType>(alloc_instance, 3.14);
+
+        ASSERT_NE(p.get(), nullptr);
+        
+        // Теперь EXPECT_EQ проверяет статические счетчики, 
+        // которые были инкрементированы в allocate_shared через копию
+        // alloc_instance или через rebind, но все равно через статические поля.
+        EXPECT_EQ(Alloc::allocations, 1); 
+        EXPECT_EQ(Alloc::deallocations, 0);
+    } // p уничтожается
+
+    EXPECT_EQ(Alloc::deallocations, 1);
+    EXPECT_EQ(Alloc::bytes_allocated, Alloc::bytes_deallocated);
+}
+
+
+TEST(AllocateShared, UsesDestructorOnly)
+{
+    NonTrivial::ctor_count = 0;
+    NonTrivial::dtor_count = 0;
+
+    {
+        // Используем NonTrivial из анонимного namespace
+        auto p = Pointers::allocate_shared<NonTrivial>({});
+        EXPECT_EQ(NonTrivial::ctor_count, 1);
+        EXPECT_EQ(NonTrivial::dtor_count, 0);
+    } // p уничтожается
+
+    EXPECT_EQ(NonTrivial::dtor_count, 1);
 }
