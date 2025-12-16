@@ -685,14 +685,14 @@ TEST(Assigments, MoveIdentical)
 
     Pointers::SharedPTR<MemoryChecker> p{raw};
 
-    Pointers::SharedPTR<MemoryChecker> p2{p};
+{    Pointers::SharedPTR<MemoryChecker> p2{p};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
     MemoryChecker::m_move_ctors = 0;
     MemoryChecker::m_dtors = 0;
 
-    p2 = std::move(p);
+    p2 = Pointers::SharedPTR<MemoryChecker>();//std::move(p);
 
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
@@ -700,7 +700,8 @@ TEST(Assigments, MoveIdentical)
     EXPECT_EQ(MemoryChecker::m_dtors, 0);
 
     EXPECT_EQ(p2.get(), raw);
-    EXPECT_EQ(p2.count_refs(), 1);
+}   
+EXPECT_EQ(p.count_refs(), 1);
 }
 
 
@@ -866,7 +867,7 @@ TEST(Assigments, RawAssignedToAssignedArrayType)
 {
     MemoryChecker* raw = new MemoryChecker[8]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[15]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[15]{}};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;

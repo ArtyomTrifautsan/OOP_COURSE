@@ -278,7 +278,7 @@ namespace Pointers {
     public: // Constructors and destructor.
         SharedPTR() noexcept = default;
 
-        SharedPTR(Type *pObj, TDeleter deleter_ = {})
+        SharedPTR(PureType* pObj, TDeleter deleter_ = {})
         {
             if (pObj == nullptr)
                 return;
