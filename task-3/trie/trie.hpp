@@ -157,7 +157,6 @@ namespace Containers
 
                         curr_node->m_has_value = true;
 
-                        suicide = true;
                     }
                     else
                     {
@@ -169,8 +168,8 @@ namespace Containers
 
                         curr_node->m_has_value = true;
 
-                        suicide = true;
                     }
+                    break;
                 }
                 else
                 {
