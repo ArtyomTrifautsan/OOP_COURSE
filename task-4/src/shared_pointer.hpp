@@ -9,208 +9,15 @@
 
 namespace Pointers {
 
-    // namespace _Impl {
-
-    //     template <typename Type, typename TDeleter = std::default_delete<Type>>
-    //     class ControlBlock
-    //     {
-    //     public:
-
-    //         ControlBlock(Type* _obg, TDeleter _deleter = {}) : m_deleter{_deleter}, m_ref_counter{1}
-    //         {
-    //             m_obj_ptr = _obg;
-    //         }
-
-    //         ~ControlBlock()
-    //         {
-    //             if (m_obj_ptr != nullptr)
-    //                 m_deleter(m_obj_ptr);
-    //         }
-
-    //         void add_ref() noexcept { ++m_ref_counter; }
-
-    //         void remove_ref() noexcept
-    //         {
-    //             --m_ref_counter;
-
-    //             if (m_ref_counter == 0)
-    //             {
-    //                 delete this;
-    //             }
-    //         }
-
-    //         Type* get_obj_ptr() noexcept { return m_obj_ptr; }
-
-    //         size_t count_refs() const noexcept { return m_ref_counter; }
-
-    //     private:
-    //         Type* m_obj_ptr = nullptr;
-    //         TDeleter m_deleter;
-    //         size_t m_ref_counter = 0;       // Или size_t?
-    //     };
-
-    // };
-
-
-    // namespace detail
-    // {
-
-    //     static size_t align_up(size_t size, size_t alignment) {
-    //         return (size + alignment - 1) & ~(alignment - 1);
-    //     }
-
-
-    //     template <typename Type>
-    //     struct TypeDestructor
-    //     {
-    //         void operator(Type* ptr) { ptr->Type(); }
-    //     };
-
-
-    //     struct IControlBlock
-    //     {
-    //     public:
-    //         virtual ~IControlBlock() {}
-
-    //         void add_ref() noexcept { ++m_ref_counter; }
-
-    //         void remove_ref() noexcept
-    //         {
-    //             --m_ref_counter;
-
-    //             if (m_ref_counter == 0)
-    //             {
-    //                 dispose();
-    //                 destroy();
-    //             }
-    //         }
-
-    //         size_t refs() const noexcept { return m_ref_counter; }
-
-    //         virtual void dispose() = 0;
-
-    //         virtual void destroy() = 0;
-
-    //     protected:
-    //         size_t m_ref_counter = 0;
-    //     };
-
-
-    //     template <typename Type, typename TDeleter = std::default_delete<Type>>
-    //     struct SplitCB : public IControlBlock
-    //     {
-    //     public:
-    //         SplitCB(Type* _obj, TDeleter del) : m_obj{_obj}, m_deleter{del}, m_ref_counter{1} {}
-
-    //         virtual ~SplitCB() {}
-
-    //         virtual void dispose() override
-    //         {
-    //             if (m_obj != nullptr)
-    //                 m_deleter(m_obj);
-    //         }
-
-    //         virtual void destroy() override
-    //         {
-    //             delete this;
-    //         }
-
-    //     private:
-    //         Type* m_obj = nullptr;
-    //         TDeleter m_deleter;
-    //     };
-
-
-    //     template <typename Type, typename TAllocator = std::allocator<Type>>
-    //     struct MonolitCB : public IControlBlock
-    //     {
-    //     public:
-    //         MonolitCB(Type* _obj, TAllocator alloc, void* raw_memory, size_t raw_memory_size)
-    //         : m_obj{_obj},
-    //           m_allocator{alloc},
-    //           m_raw_memory{raw_memory},
-    //           m_raw_memory_size{raw_memory_size},
-    //           m_ref_counter{1}
-    //         {}
-
-    //         virtual ~MonolitCB() {}
-
-    //         virtual void dispose() override
-    //         {
-    //             if (m_obj != nullptr)
-    //                 m_obj->~Type();
-    //         }
-
-    //         virtual void destroy() override
-    //         {
-    //             using ByteAllocator = typename std::allocator_traits<TAllocator>::template rebind_alloc<char>;
-    //             ByteAllocator byte_allocator = m_allocator;
-
-    //             this->~MonolitCB();
-
-    //             if (m_raw_memory)
-    //                 byte_allocator.deallocate(m_raw_memory, m_raw_memory_size);
-    //         }
-
-    //     private:
-    //         Type* m_obj = nullptr;
-    //         TAllocator m_allocator;
-    //         void* m_raw_memory = nullptr;
-    //         size_t m_raw_memory_size;
-    //     };
-
-    // }
-
-    template <typename Type, typename AllocatorType, typename... Args>
-    requires (!std::is_array_v<Type>)
-    auto allocate_shared(const AllocatorType& alloc, Args&&... args);
+    // template <typename Type, typename AllocatorType, typename... Args>
+    // requires (!std::is_array_v<Type>)
+    // auto allocate_shared(const AllocatorType& alloc, Args&&... args);
 
     namespace detail
     {
 
         // template <typename Type, typename TDeleter = std::default_delete<Type>, typename TAllocator = std::allocator<Type>>
-        template <typename Type, typename TDeleter, typename TAllocator>
-        class ControlBlock
-        {
-        public:
-
-            ControlBlock(Type* _obj, TDeleter del, TAllocator alloc, size_t raw_mem_size = 0)
-                : m_deleter{del}, m_allocator{alloc}, m_ref_counter{1}
-            {
-                m_raw_memory_size = raw_mem_size == 0 ? sizeof(*this) : raw_mem_size;
-            }
-
-            ~ControlBlock() = default;
-
-            void add_ref() noexcept { ++m_ref_counter; }
-
-            void remove_ref() noexcept
-            {
-                --m_ref_counter;
-
-                // if (m_ref_counter == 0)
-                // {
-                //     // Что делать?
-                // }
-            }
-
-            // Type* obj() noexcept { return m_obj; }
-
-            TDeleter deleter() const { return m_deleter; }
-
-            TAllocator allocator() const { return m_allocator; }
-
-            size_t refs() const noexcept { return m_ref_counter; }
-
-            size_t raw_memory_size() const noexcept { return m_raw_memory_size; }
-
-        private:
-            // Type* m_obj = nullptr;
-            TDeleter m_deleter;
-            TAllocator m_allocator;
-            size_t m_ref_counter = 0;
-            size_t m_raw_memory_size = 0;
-        };
+        
 
 
         template <typename Type>
@@ -237,42 +44,50 @@ namespace Pointers {
 
     }
 
-    template<typename Type, typename TDeleter = std::default_delete<Type>, typename TAllocator = std::allocator<Type>>
+
+    // template <typename Type, typename... Args>
+    // requires (!std::is_array_v<Type>)
+    // auto make_shared(Args&&... args);
+
+    
+
+    template<typename Type, typename TDeleter = std::default_delete<Type>>
     class SharedPTR {
     public:
-        // Я решил сделать функцию allocate_shared friend, чтобы она могла вызвать приватный
-        // конструктор SharedPTR(Type *pObj, detail::ControlBlock<Type, TDeleter, TAllocator> cb).
-        // Я сделал его приватным, потому что не хочу, чтобы его видели извне
-        // template <typename Type, typename AllocatorType = std::allocator<Type>, typename... Args>
-        // requires (!std::is_array_v<Type>)
-        // friend auto allocate_shared(const AllocatorType& alloc, Args&&... args);
-        // template <typename... Args>
-        // requires (!std::is_array_v<Type>)
-        // friend auto allocate_shared<Type, AllocatorType, Args...>(const AllocatorType& alloc, Args&&... args);
-
-        // template <typename TAlloc_, typename... Args_>
-        // friend auto allocate_shared(const TAlloc_& alloc, Args_&&... args);
-
-        using t_SharedPTR = SharedPTR<Type, TDeleter, TAllocator>;
-
+        using t_SharedPTR = SharedPTR<Type, TDeleter>;
         using PureType = std::conditional_t<std::is_array_v<Type>, std::remove_extent_t<Type>, Type>;
 
-        using TControlBlock = detail::ControlBlock<PureType, TDeleter, TAllocator>;
-    
-    // private:
     public:
-        // template <typename TAllocator = std::allocator<Type>>
-        SharedPTR(Type *pObj, detail::ControlBlock<Type, TDeleter, TAllocator>* cb)
+        class ControlBlock
         {
-            /*
-            По идее, тут не может быть nullptr
-            */
-            // if (pObj == nullptr)
-            //     return;
+        public:
 
-            m_obj = pObj;
+            ControlBlock(PureType* _obj, TDeleter del, bool _monolithic, bool _array_type)
+                : m_obj{_obj}, m_deleter{del}, m_monolithic{_monolithic}, m_array_type{_array_type}, m_ref_counter{1} {}
+            ~ControlBlock() = default;
 
-            m_control_block = cb;
+            void add_ref() noexcept { ++m_ref_counter; }
+            void remove_ref() noexcept { --m_ref_counter; }
+
+            Type* obj() noexcept { return m_obj; }
+            TDeleter deleter() noexcept { return m_deleter; }
+            size_t refs() const noexcept { return m_ref_counter; }
+            bool monolithic() const noexcept { return m_monolithic; }
+            bool array_type() const noexcept { return m_array_type; }
+
+        private:
+            Type* m_obj = nullptr;
+            TDeleter m_deleter;
+            size_t m_ref_counter = 0;
+            bool m_monolithic = false;
+            bool m_array_type = false;
+        };
+
+    private:
+        // Этот конструктор используется функцией make_shared()
+        SharedPTR(ControlBlock* cb, bool is_array_type) : m_control_block{cb}
+        {
+            
         }
 
     public: // Constructors and destructor.
@@ -283,14 +98,11 @@ namespace Pointers {
             if (pObj == nullptr)
                 return;
 
-            m_obj = pObj;
-
-            m_control_block = new detail::ControlBlock(pObj, deleter_, std::allocator<Type>{});
+            m_control_block = new ControlBlock{pObj, deleter_, false, std::is_array_v<Type>};
         }
 
         SharedPTR(t_SharedPTR&& other) noexcept
         {
-            std::swap(m_obj, other.m_obj);
             std::swap(m_control_block, other.m_control_block);
         }
 
@@ -299,8 +111,6 @@ namespace Pointers {
             if (other.m_control_block == nullptr) return;
 
             m_control_block = other.m_control_block;
-
-            m_obj = other.m_obj;
 
             m_control_block->add_ref();
         }
@@ -317,13 +127,12 @@ namespace Pointers {
         {
             if (this == &other) return *this;
 
-            std::swap(m_obj, other.m_obj);
             std::swap(m_control_block, other.m_control_block);
 
             return *this;
         }
 
-        t_SharedPTR& operator=(Type *pObj)
+        t_SharedPTR& operator=(PureType *pObj)
         {
             reset(pObj);
 
@@ -340,7 +149,6 @@ namespace Pointers {
 
             if (other.m_control_block != nullptr)
             {
-                m_obj = other.m_obj;
                 m_control_block = other.m_control_block;
                 m_control_block->add_ref();
             }
@@ -351,27 +159,21 @@ namespace Pointers {
     public: // Observers.
     // Dereference the stored pointer.
 
-        Type& operator*() const requires (!std::is_array_v<Type>)
+        PureType& operator*() const requires (!std::is_array_v<Type>)
         {
             if (m_control_block == nullptr)
                 throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
 
-            if (m_obj == nullptr)
-                throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
-
-            return *m_obj;
+            return *(m_control_block->obj());
         }
 
         // Return the stored pointer.
-        Type* operator->() const requires (!std::is_array_v<Type>)
+        PureType* operator->() const requires (!std::is_array_v<Type>)
         {
             if (m_control_block == nullptr)
                 throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
 
-            if (m_obj == nullptr)
-                throw std::runtime_error("Dereferencing nullptr: SharedPTR is nullptr.");
-
-            return m_obj;
+            return m_control_block->obj();
         }
 
         // Type& operator[](size_t index) const requires (std::is_array_v<Type>)
@@ -381,9 +183,9 @@ namespace Pointers {
         // }
 
         // Return the stored pointer.
-        Type* get() const
+        PureType* get() const
         {
-            return m_obj;
+            return m_control_block->obj();
         }
 
         // Return false if the stored pointer is null.
@@ -416,207 +218,119 @@ namespace Pointers {
 
             if (m_control_block->refs() == 0)
             {
-                release_object();
-                delete_control_block();
+                if (m_control_block->monolithic())
+                    monolithic_delete();
+                else
+                    split_delete();
             }
 
-            m_obj = nullptr;
             m_control_block = nullptr;
         }
 
         // Replace the stored pointer.
-        void reset(Type *pObj = nullptr)
+        void reset(PureType *pObj = nullptr)
         {
             // кинуть если передали тот же самый указатель который уже хранится
-            if (m_control_block != nullptr && pObj == m_obj)
+            if (m_control_block != nullptr && pObj == m_control_block->obj())
                 throw std::runtime_error("SharedPTR already have this pointer.");
 
             TDeleter del = m_control_block->deleter();
-            TAllocator alloc = m_control_block->allocator();
 
             release();
 
             if (pObj != nullptr)
             {
-                m_obj = pObj;
-                m_control_block = new detail::ControlBlock(pObj, del, alloc);
+                m_control_block = new ControlBlock(pObj, del, false, std::is_array_v<Type>);
             }
         }
 
         // Exchange the pointer with another object.
         void swap(t_SharedPTR& other)
         {
-            std::swap(m_obj, other.m_obj);
             std::swap(m_control_block, other.m_control_block);
         }
 
     private:
-        Type* m_obj = nullptr;
-        detail::ControlBlock<Type, TDeleter, TAllocator>* m_control_block = nullptr;
+        ControlBlock* m_control_block = nullptr;
 
-        void release_object()
+        void monolithic_delete()
         {
-            auto deleter = m_control_block->deleter();
-            deleter(m_obj);
-            m_obj = nullptr;
-        }
+            // Я запретил создавать ArrayType указатели через make_shared!
+            // Я знаю как это сделать, но уже некогда с этим баловаться. 
 
-        void delete_control_block()
-        {
-            auto allocator = m_control_block->allocator();
-            size_t cb_size = m_control_block->raw_memory_size();
-
-            using ByteAllocator = typename std::allocator_traits<TAllocator>::template rebind_alloc<char>;
-            ByteAllocator byte_allocator = allocator;
+            PureType* obj = m_control_block->obj();
+            if (obj != nullptr)
+                obj->~PureType();
 
             m_control_block->~ControlBlock();
 
-            byte_allocator.deallocate(reinterpret_cast<char*>(m_control_block), cb_size);
-
-            m_control_block = nullptr;
+            // Так как я выделял память для char, я решил привести указатель к типу char*,
+            // прежде чем освободить память. Просто на всякий случай. 
+            char* char_ptr = reinterpret_cast<char*>(m_control_block);
+            operator delete(char_ptr);
         }
+
+        void split_delete()
+        {
+            Type* obj = m_control_block->obj();
+            TDeleter del = m_control_block->deleter();
+            if (obj != nullptr)
+            {
+                del(obj);
+            }
+
+            delete m_control_block;
+        }
+
+    public:
+        template <typename T, typename... Args>
+        requires (!std::is_array_v<T>)
+        friend auto make_shared(Args&&... args);
+
+
     };
 
 
-    template <typename Type, typename AllocatorType = std::allocator<Type>, typename... Args>
+    template <typename Type, typename... Args>
     requires (!std::is_array_v<Type>)
-    auto allocate_shared(const AllocatorType& alloc, Args&&... args)
+    auto make_shared(Args&&... args)
     {
-        // Обязательно учитываем выравнивание
-
-        // 1. Расчет смещения для Type
-        // Нам нужно, чтобы смещение было кратно alignof(Type).
-        size_t offset_for_object = detail::align_up(sizeof(detail::ControlBlock<Type, detail::ObjectDestructor<Type>, AllocatorType>), alignof(Type));
-
-        // 2. Расчет общего размера
-        size_t total_size = offset_for_object + sizeof(Type);
-
-        // using CommonAllocator = AllocatorType<Type>::rebind<char>::other;
-        using ByteAllocator = typename std::allocator_traits<AllocatorType>::template rebind_alloc<char>;
-        ByteAllocator allocator = alloc;
-
+        using CBT = SharedPTR<Type>::ControlBlock;
+        size_t total_size = sizeof(CBT) + sizeof(Type);
         void* raw_memory = nullptr;
-        detail::ControlBlock<Type, detail::ObjectDestructor<Type>, AllocatorType>* control_block = nullptr;
         Type* obj = nullptr;
+        CBT* control_block = nullptr;
 
         try
         {
-            raw_memory = allocator.allocate(total_size);
-
+            raw_memory = operator new(total_size);
             char* char_memory = static_cast<char*>(raw_memory);
-
-            obj = new (char_memory + offset_for_object) Type{std::forward<Args>(args)...};
-
-            control_block = new (static_cast<detail::ControlBlock<Type, detail::ObjectDestructor<Type>, AllocatorType>*>(raw_memory)) detail::ControlBlock(obj, detail::ObjectDestructor<Type>{}, alloc, total_size);
+            obj = new (char_memory + sizeof(CBT)) Type{std::forward<Args>(args)...};
+            control_block = new (char_memory) CBT{obj, {}, true, false};
         }
         catch (...)
         {
             if (obj != nullptr)
                 obj->~Type();
-            
+
             if (control_block != nullptr)
                 control_block->~ControlBlock();
 
             if (raw_memory != nullptr)
-                allocator.deallocate(static_cast<char*>(raw_memory), total_size);
+                operator delete(raw_memory);
 
             throw;
         }
 
-        return SharedPTR<Type, detail::ObjectDestructor<Type>, AllocatorType>{obj, control_block};
+        return SharedPTR<Type>{control_block, false};
     }
 
 
     template <typename Type, typename AllocatorType = std::allocator<Type>, typename... Args>
     requires (std::is_array_v<Type>)
-    auto allocate_shared(const AllocatorType& alloc, Args&&... args)
+    auto make_shared(const AllocatorType& alloc, Args&&... args)
     {
 
     }
-
-
-    template<typename Type, typename... Args>
-    auto make_shared(Args&&... args)
-    // auto make_shared(Args&&... args) -> std::enable_if_t<(sizeof...(Args) > 0) && !std::is_same_v<std::decay>>
-    {
-        /*
-        На cpp reference написано, что при использовании std::make_shared происходит только одна
-        аллокация памяти, но я не придумал как правильно реализовать эту затею.
-
-        У меня только одна идея. Сделать класс ControlBlock интерфейсом, и сделать две реализации 
-        интерфейса: MonolitControlBlock и NonMonolitControlBlock. Первый класс будет использоваться
-        при создании SharedPTR с помощью функций make_shared, а второй при создании SharedPTR с 
-        помощью конструкторов.
-        */
-        Type* pObj = new Type{std::forward<Args>(args)...};
-        return SharedPTR<Type>(pObj);
-    }
-
-
-
-    // template<typename Type, typename... Args>
-    // requires (std::is_array_v<Type> == false)
-    // auto make_shared_pointer(Args&&... args) {
-    //     using PureType = std::remove_extent_t<Type>;
-    //     using DtorPureType = detail::Dtor<PureType>;
-
-    //     using Cblock = typename Shared_pointer<Type, DtorPureType>::ControlBlock;
-
-    //     void* memory = ::operator new(sizeof(PureType) + sizeof(Cblock));
-
-
-    //     PureType* p_obj = nullptr;
-    //     Cblock* p_block = nullptr;
-
-    //     try {
-    //         p_block = new(memory) Cblock(DtorPureType());
-    //         p_obj = new(static_cast<char*>(memory) + sizeof(Cblock)) Type(std::forward<Args>(args)...);
-
-    //         return Shared_pointer<Type, DtorPureType>(p_obj, p_block);
-    //     }
-    //     catch (...) {
-    //         if (p_obj) p_obj->~PureType();
-    //         if (p_block) p_block->~ControlBlock();
-    //         ::operator delete(memory);
-    //         throw;
-    //     }
-    // }
-
-    // template<typename Type>
-    //     requires std::is_array_v<Type>
-    // auto make_shared_pointer(std::size_t N) {
-    //     using PureType = std::remove_extent_t<Type>;
-    //     using DtorPureType = detail::Dtor<PureType[]>;
-    //     using Cblock = typename Shared_pointer<Type, DtorPureType>::ControlBlock;
-
-    //     if (N == 0) {
-    //         return Shared_pointer<Type, DtorPureType>(nullptr, nullptr);
-    //     }
-
-    //     void* memory = ::operator new(sizeof(PureType) * N + sizeof(Cblock));
-    //     PureType* p_obj = nullptr;
-    //     Cblock* p_block = nullptr;
-
-    //     try {
-    //         p_block = new(memory) Cblock(DtorPureType(N));
-    //         p_obj = reinterpret_cast<PureType*>(static_cast<char*>(memory) + sizeof(Cblock));
-
-    //         for (std::size_t i = 0; i < N; ++i) {
-    //             new(&p_obj[i]) PureType();
-    //         }
-
-    //         return Shared_pointer<Type, DtorPureType>(p_obj, p_block);
-    //     }
-    //     catch (...) {
-    //         if (p_obj) {
-    //             for (std::size_t i = 0; i < N; ++i) {
-    //                 p_obj[i].~PureType();
-    //             }
-    //         }
-    //         if (p_block) p_block->~Cblock();
-    //         ::operator delete(memory);
-    //         throw;
-    //     }
-    // }
 
 }
