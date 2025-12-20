@@ -19,15 +19,6 @@ TEST(Assigments, MoveIdentical)
 
 namespace {
 
-    template <typename Type>
-    struct ArrayDeleter
-    {
-        void operator()(Type* ptr)
-        {
-            delete[] ptr;
-        }
-    };
-
     struct MemoryChecker
     {
         MemoryChecker() { ++m_ctors; }
@@ -84,86 +75,6 @@ namespace {
         ~ThrowingConstructor() { MemoryChecker::m_dtors++; }
     };
 
-    // // Класс для тестирования кастомного аллокатора
-    // template<typename T>
-    // struct TrackingAllocator : public std::allocator<T>
-    // {
-    //     using size_type = size_t;
-    //     using value_type = T;
-    //     using propagate_on_container_copy_assignment = std::true_type;
-    //     using propagate_on_container_move_assignment = std::true_type;
-    //     using propagate_on_container_swap = std::true_type;
-
-    //     inline static size_t allocations = 0;
-    //     inline static size_t deallocations = 0;
-    //     inline static size_t bytes_allocated = 0;
-    //     inline static size_t bytes_deallocated = 0;
-
-    //     TrackingAllocator() = default;
-
-    //     template<class U>
-    //     TrackingAllocator(const TrackingAllocator<U>&) noexcept {}
-
-    //     T* allocate(size_t n)
-    //     {
-    //         allocations++;
-    //         bytes_allocated += n * sizeof(T);
-    //         return std::allocator<T>().allocate(n);
-    //     }
-
-    //     void deallocate(T* p, size_t n)
-    //     {
-    //         deallocations++;
-    //         bytes_deallocated += n * sizeof(T);
-    //         std::allocator<T>().deallocate(p, n);
-    //     }
-
-    //     static void ResetCounts() { allocations = deallocations = bytes_allocated = bytes_deallocated = 0; }
-
-    //     // Требуется для rebind, если используется std::allocator_traits
-    //     template<class U>
-    //     struct rebind { using other = TrackingAllocator<U>; };
-    // };
-
-    struct AllocatorStats {
-        inline static size_t allocations = 0;
-        inline static size_t deallocations = 0;
-        inline static size_t bytes_allocated = 0;
-        inline static size_t bytes_deallocated = 0;
-        static void ResetCounts() { allocations = deallocations = bytes_allocated = bytes_deallocated = 0; }
-    };
-
-    template<typename T>
-    struct TrackingAllocator : public std::allocator<T>, public AllocatorStats // Наследуем счетчики
-    {
-        // ...
-        TrackingAllocator() = default;
-
-        template<class U>
-        TrackingAllocator(const TrackingAllocator<U>& other) noexcept 
-            : AllocatorStats(other) // Копируем статистику (не обязательно, так как статические)
-        {}
-
-        T* allocate(size_t n)
-        {
-            // Используем счетчики из AllocatorStats
-            AllocatorStats::allocations++; 
-            AllocatorStats::bytes_allocated += n * sizeof(T);
-            return std::allocator<T>().allocate(n);
-        }
-
-        void deallocate(T* p, size_t n)
-        {
-            // Используем счетчики из AllocatorStats
-            AllocatorStats::deallocations++; 
-            AllocatorStats::bytes_deallocated += n * sizeof(T);
-            std::allocator<T>().deallocate(p, n);
-        }
-
-        template<class U>
-        struct rebind { using other = TrackingAllocator<U>; };
-    };
-
     class NonTrivial
     {
     public:
@@ -171,6 +82,22 @@ namespace {
         inline static size_t dtor_count = 0;
         NonTrivial() { ctor_count++; }
         ~NonTrivial() { dtor_count++; }
+    };
+
+    struct ThrowingEveryFifth
+    {
+        inline static int count = 0;
+        
+        ThrowingEveryFifth() 
+        {
+            ++count;
+            MemoryChecker::m_ctors++;
+            if (count % 5 == 0) {
+                throw std::runtime_error("Constructor failed on fifth element");
+            }
+        }
+
+        ~ThrowingEveryFifth() { MemoryChecker::m_dtors++; }
     };
     
 }
@@ -269,7 +196,7 @@ TEST(Constructors, RawPointerArrayType)
     MemoryChecker::m_move_ctors = 0;
     MemoryChecker::m_dtors = 0;
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[10]> p{raw};
 
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
@@ -415,9 +342,9 @@ TEST(Assigments, MoveEmptyToEmptyMemoryManagment)
 
 TEST(Assigments, MoveEmptyToEmptyArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker[], ArrayDeleter<MemoryChecker[]>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
-    Pointers::SharedPTR<MemoryChecker[], ArrayDeleter<MemoryChecker[]>> p2{};
+    Pointers::SharedPTR<MemoryChecker[]> p2{};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -473,9 +400,9 @@ TEST(Assigments, MoveAssignedToEmptyArrayType)
 {
     MemoryChecker* raw = new MemoryChecker[7]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[7]> p{raw};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{};
+    Pointers::SharedPTR<MemoryChecker[7]> p2{};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -528,11 +455,11 @@ TEST(Assigments, MoveEmptyToAssignedMemoryManagment)
 
 TEST(Assigments, MoveEmptyToAssignedArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
     MemoryChecker* raw = new MemoryChecker[7]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -590,11 +517,11 @@ TEST(Assigments, MoveAssignedToAssignedArrayType)
 {
     MemoryChecker* raw = new MemoryChecker[14]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
 
     MemoryChecker* raw2 = new MemoryChecker[14]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -616,8 +543,8 @@ TEST(Assigments, MoveBigArrayToSmallArray)
     MemoryChecker* raw2 = new MemoryChecker[7]{};
 
     // Присваиваем больший к меньшему
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -639,8 +566,8 @@ TEST(Assigments, MoveSmallArrayToBigArray)
     MemoryChecker* raw2 = new MemoryChecker[7]{};
 
     // Присваиваем меньший к большему
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p3{raw};
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p4{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p3{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p4{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -692,7 +619,7 @@ TEST(Assigments, MoveIdentical)
     MemoryChecker::m_move_ctors = 0;
     MemoryChecker::m_dtors = 0;
 
-    p2 = Pointers::SharedPTR<MemoryChecker>();//std::move(p);
+    p2 = std::move(p);
 
     EXPECT_EQ(MemoryChecker::m_ctors, 0);
     EXPECT_EQ(MemoryChecker::m_copy_ctors, 0);
@@ -811,7 +738,7 @@ TEST(Assigments, RawEmptyToAssignedArrayType)
 {
     MemoryChecker* raw = nullptr;
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[8]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[8]{}};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -938,9 +865,9 @@ TEST(Assigments, CopyEmptyToEmptyMemoryManagment)
 
 TEST(Assigments, CopyEmptyToEmptyArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker[], ArrayDeleter<MemoryChecker[]>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
-    Pointers::SharedPTR<MemoryChecker[], ArrayDeleter<MemoryChecker[]>> p2{};
+    Pointers::SharedPTR<MemoryChecker[]> p2{};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1000,9 +927,9 @@ TEST(Assigments, CopyAssignedToEmptyArrayType)
 {
     MemoryChecker* raw = new MemoryChecker[7]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{};
+    Pointers::SharedPTR<MemoryChecker[]> p2{};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1058,11 +985,11 @@ TEST(Assigments, CopyEmptyToAssignedMemoryManagment)
 
 TEST(Assigments, CopyEmptyToAssignedArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
     MemoryChecker* raw = new MemoryChecker[7]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1147,11 +1074,11 @@ TEST(Assigments, CopyAssignedToAssignedArrayType)
 {
     MemoryChecker* raw = new MemoryChecker[14]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
 
     MemoryChecker* raw2 = new MemoryChecker[14]{};
 
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1173,8 +1100,8 @@ TEST(Assigments, CopyBigArrayToSmallArray)
     MemoryChecker* raw2 = new MemoryChecker[7]{};
 
     // Присваиваем больший к меньшему
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p2{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p2{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1196,8 +1123,8 @@ TEST(Assigments, CopySmallArrayToBigArray)
     MemoryChecker* raw2 = new MemoryChecker[7]{};
 
     // Присваиваем меньший к большему
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p3{raw};
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p4{raw2};
+    Pointers::SharedPTR<MemoryChecker[]> p3{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p4{raw2};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1347,7 +1274,7 @@ TEST(Destructor, ForArrayType)
 
     {
         MemoryChecker* raw = new MemoryChecker[5]();
-        Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p(raw);
+        Pointers::SharedPTR<MemoryChecker[]> p(raw);
         // Pointers::SharedPTR<MemoryChecker> p(raw);
 
         EXPECT_EQ(MemoryChecker::m_dtors, 0);
@@ -1752,7 +1679,7 @@ TEST(Release, AssignedMemoryManagment)
 TEST(Release, AssignedArrayType)
 {
     auto raw = new MemoryChecker[50]{};
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{raw};
+    Pointers::SharedPTR<MemoryChecker[]> p{raw};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1879,7 +1806,7 @@ TEST(Reset, EmptyToEmptyMemoryManagment)
 
 TEST(Reset, EmptyToEmptyArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -1931,7 +1858,7 @@ TEST(Reset, EmptyToAssignedMemoryManagment)
 
 TEST(Reset, EmptyToAssignedArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{};
+    Pointers::SharedPTR<MemoryChecker[]> p{};
 
     auto raw = new MemoryChecker[21]{};
 
@@ -1980,7 +1907,7 @@ TEST(Reset, AssignedToEmptyMemoryManagment)
 
 TEST(Reset, AssignedToEmptyArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[21]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[21]{}};
 
     MemoryChecker::m_ctors = 0;
     MemoryChecker::m_copy_ctors = 0;
@@ -2036,7 +1963,7 @@ TEST(Reset, AssignedToAssignedMemoryManagment)
 
 TEST(Reset, AssignedToAssignedArrayType)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[21]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[21]{}};
 
     auto raw = new MemoryChecker[21]{};
 
@@ -2056,7 +1983,7 @@ TEST(Reset, AssignedToAssignedArrayType)
 
 TEST(Reset, ArraySmallToBig)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[10]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[10]{}};
 
     auto raw = new MemoryChecker[20]{};
 
@@ -2076,7 +2003,7 @@ TEST(Reset, ArraySmallToBig)
 
 TEST(Reset, ArrayBigToSmall)
 {
-    Pointers::SharedPTR<MemoryChecker, ArrayDeleter<MemoryChecker>> p{new MemoryChecker[30]{}};
+    Pointers::SharedPTR<MemoryChecker[]> p{new MemoryChecker[30]{}};
 
     auto raw = new MemoryChecker[15]{};
 
@@ -2125,8 +2052,254 @@ TEST(MakeShared, WithParameters)
 
 
 
+//========================================================================
+//===                          make_shared()                           ===
+//========================================================================
+TEST(MakeShared, NonArrayType)
+{
+    MemoryChecker::ResetCounts();
+    {
+        auto p = Pointers::make_shared<MemoryChecker>();
+        EXPECT_EQ(MemoryChecker::m_ctors, 1);
+        EXPECT_EQ(MemoryChecker::m_dtors, 0);
+        EXPECT_EQ(p.count_refs(), 1);
+        EXPECT_TRUE(p);
+    }
+    EXPECT_EQ(MemoryChecker::m_dtors, 1);
+}
 
+TEST(MakeShared, NonArrayWithArgs)
+{
+    auto p = Pointers::make_shared<Point>(3, 4);
+    EXPECT_EQ(p->x(), 3);
+    EXPECT_EQ(p->y(), 4);
+    EXPECT_EQ(p.count_refs(), 1);
+}
 
+TEST(MakeShared, ArrayType)
+{
+    NonTrivial::ctor_count = 0;
+    NonTrivial::dtor_count = 0;
+    
+    {
+        auto p = Pointers::make_shared<NonTrivial[]>(5);
+        EXPECT_EQ(NonTrivial::ctor_count, 5);
+        EXPECT_EQ(NonTrivial::dtor_count, 0);
+        EXPECT_EQ(p.count_refs(), 1);
+        EXPECT_TRUE(p);
+        
+        // Проверяем доступ к элементам
+        EXPECT_NO_THROW(p[0]);
+        EXPECT_NO_THROW(p[4]);
+    }
+    EXPECT_EQ(NonTrivial::dtor_count, 5);
+}
+
+TEST(MakeShared, ArrayOfInt)
+{
+    auto p = Pointers::make_shared<int[]>(10);
+    EXPECT_EQ(p.count_refs(), 1);
+    EXPECT_TRUE(p);
+    
+    // Инициализируем значения
+    for (int i = 0; i < 10; ++i) {
+        p[i] = i * 2;
+    }
+    
+    // Проверяем значения
+    for (int i = 0; i < 10; ++i) {
+        EXPECT_EQ(p[i], i * 2);
+    }
+}
+
+TEST(MakeShared, CopySharedArray)
+{
+    NonTrivial::ctor_count = 0;
+    NonTrivial::dtor_count = 0;
+    
+    {
+        auto p1 = Pointers::make_shared<NonTrivial[]>(3);
+        EXPECT_EQ(NonTrivial::ctor_count, 3);
+        EXPECT_EQ(p1.count_refs(), 1);
+        
+        {
+            auto p2 = p1; // Копирование
+            EXPECT_EQ(p1.count_refs(), 2);
+            EXPECT_EQ(p2.count_refs(), 2);
+            EXPECT_EQ(NonTrivial::ctor_count, 3); // Не должно создавать новых объектов
+        }
+        
+        EXPECT_EQ(p1.count_refs(), 1);
+        EXPECT_EQ(NonTrivial::dtor_count, 0);
+    }
+    EXPECT_EQ(NonTrivial::dtor_count, 3);
+}
+
+TEST(MakeShared, MoveSharedArray)
+{
+    NonTrivial::ctor_count = 0;
+    NonTrivial::dtor_count = 0;
+    
+    {
+        auto p1 = Pointers::make_shared<NonTrivial[]>(2);
+        EXPECT_EQ(NonTrivial::ctor_count, 2);
+        EXPECT_EQ(p1.count_refs(), 1);
+        
+        auto p2 = std::move(p1); // Перемещение
+        EXPECT_EQ(p2.count_refs(), 1);
+        EXPECT_FALSE(p1); // p1 должен быть пустым после перемещения
+        EXPECT_TRUE(p2); // p2 должен содержать указатель
+        
+        EXPECT_EQ(NonTrivial::dtor_count, 0);
+    }
+    EXPECT_EQ(NonTrivial::dtor_count, 2);
+}
+
+TEST(MakeShared, ArrayExceptionEveryFifth)
+{
+    // Сбрасываем счетчики
+    MemoryChecker::ResetCounts();
+    ThrowingEveryFifth::count = 0;
+
+    // EXPECT_THROW(auto p = Pointers::make_shared<ThrowingEveryFifth[]>(10), std::runtime_error);
+
+    // EXPECT_EQ(ThrowingEveryFifth::count, 5);
+    // EXPECT_EQ(MemoryChecker::m_ctors, 5);
+    // EXPECT_EQ(MemoryChecker::m_dtors, 4);
+
+    try {
+        // Пытаемся создать массив из 10 элементов
+        // Пятый элемент должен выбросить исключение
+        auto p = Pointers::make_shared<ThrowingEveryFifth[]>(10);
+        
+        // Если дошли сюда, значит исключение не было выброшено - это ошибка
+        FAIL() << "Expected exception not thrown";
+    }
+    catch (const std::runtime_error& e) {
+        // Проверяем, что исключение было выброшено на 5-м элементе
+        EXPECT_EQ(ThrowingEveryFifth::count, 5);
+        
+        // Проверяем, что конструкторы были вызваны 5 раз (4 успешно, 5-й с исключением)
+        EXPECT_EQ(MemoryChecker::m_ctors, 5);
+        
+        // Проверяем, что деструкторы были вызваны для 4 успешно созданных объектов
+        EXPECT_EQ(MemoryChecker::m_dtors, 4);
+        
+        // Проверяем сообщение об ошибке
+        EXPECT_STREQ(e.what(), "Constructor failed on fifth element");
+    }
+    
+    // Дополнительная проверка: счетчик конструкторов в классе
+    EXPECT_EQ(ThrowingEveryFifth::count, 5);
+}
+
+TEST(MakeShared, ArrayExceptionOnTenth)
+{
+    // Тестируем ситуацию, когда исключение выбрасывается на 10-м элементе
+    MemoryChecker::ResetCounts();
+    ThrowingEveryFifth::count = 0;
+    
+    try {
+        // Создаем массив из 15 элементов
+        // 5-й и 10-й элементы должны выбросить исключение
+        // Первое исключение будет на 5-м элементе
+        auto p = Pointers::make_shared<ThrowingEveryFifth[]>(15);
+        
+        FAIL() << "Expected exception not thrown";
+    }
+    catch (const std::runtime_error& e) {
+        // Первое исключение на 5-м элементе
+        EXPECT_EQ(ThrowingEveryFifth::count, 5);
+        EXPECT_EQ(MemoryChecker::m_ctors, 5);
+        EXPECT_EQ(MemoryChecker::m_dtors, 4);
+    }
+}
+
+TEST(MakeShared, ArrayNoException)
+{
+    // Тест без исключения - создаем массив из 4 элементов
+    MemoryChecker::ResetCounts();
+    ThrowingEveryFifth::count = 0;
+    
+    auto p = Pointers::make_shared<ThrowingEveryFifth[]>(4);
+    
+    // Проверяем, что все 4 элемента созданы успешно
+    EXPECT_EQ(ThrowingEveryFifth::count, 4);
+    EXPECT_EQ(MemoryChecker::m_ctors, 4);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
+    
+    // Проверяем, что указатель валиден
+    EXPECT_TRUE(p);
+    EXPECT_EQ(p.count_refs(), 1);
+    
+    // Когда p выходит из области видимости, все 4 деструктора должны быть вызваны
+}
+
+TEST(MakeShared, ArrayExceptionAfterTen)
+{
+    // Создаем массив из 12 элементов (исключение на 5-м и 10-м)
+    MemoryChecker::ResetCounts();
+    ThrowingEveryFifth::count = 0;
+    
+    try {
+        auto p = Pointers::make_shared<ThrowingEveryFifth[]>(12);
+        
+        FAIL() << "Expected exception not thrown";
+    }
+    catch (const std::runtime_error& e) {
+        // Должно остановиться на 5-м элементе
+        EXPECT_EQ(ThrowingEveryFifth::count, 5);
+        EXPECT_EQ(MemoryChecker::m_ctors, 5);
+        EXPECT_EQ(MemoryChecker::m_dtors, 4);
+    }
+}
+
+TEST(MakeShared, ZeroSizeArrayWithThrowingType)
+{
+    // Тестируем создание массива нулевого размера с типом, который может кидать исключения
+    MemoryChecker::ResetCounts();
+    ThrowingEveryFifth::count = 0;
+    
+    auto p = Pointers::make_shared<ThrowingEveryFifth[]>(0);
+    
+    // Ни один конструктор не должен быть вызван
+    EXPECT_EQ(ThrowingEveryFifth::count, 0);
+    EXPECT_EQ(MemoryChecker::m_ctors, 0);
+    EXPECT_EQ(MemoryChecker::m_dtors, 0);
+    
+    // Указатель должен быть валиден
+    EXPECT_TRUE(p);
+    EXPECT_EQ(p.count_refs(), 1);
+}
+
+TEST(MakeShared, ArrayExceptionSafety)
+{
+    class ThrowInConstructor {
+    public:
+        ThrowInConstructor() {
+            static int count = 0;
+            if (++count == 3) {
+                throw std::runtime_error("Failed on third element");
+            }
+        }
+        ~ThrowInConstructor() = default;
+    };
+    
+    // При создании массива из 5 элементов, третий должен выбросить исключение
+    EXPECT_THROW({
+        Pointers::make_shared<ThrowInConstructor[]>(5);
+    }, std::runtime_error);
+    
+    // Первые два элемента должны быть уничтожены
+}
+
+TEST(MakeShared, ZeroSizeArray)
+{
+    auto p = Pointers::make_shared<int[]>(0);
+    EXPECT_TRUE(p); // Указатель должен быть валидным
+    EXPECT_EQ(p.count_refs(), 1);
+    EXPECT_EQ(p.get(), nullptr); // Но данные должны быть nullptr
+}
 
 
 
