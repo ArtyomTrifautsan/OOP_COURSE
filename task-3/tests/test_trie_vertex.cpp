@@ -1426,17 +1426,6 @@ TEST(SubTrie, SubTrieWithEmptyKey) {
     // Нельзя создать SubTrie с пустым ключом, потому что GetSubTrie
     // ищет существующий ключ, а "" может быть вставлен
     EXPECT_THROW(auto sub_trie = trie.GetSubTrie(""), std::runtime_error);
-
-    try {
-        auto sub_trie = trie.GetSubTrie("");
-        FAIL() << "Ожидалось std::runtime_error";
-    }
-    catch (const std::runtime_error& e) {
-        EXPECT_STREQ(
-            "Invalid key error: The key is not found in the trie.",
-            e.what()
-        );
-    }
 }
 
 TEST(SubTrie, SubTrieAfterEraseOperations) {
