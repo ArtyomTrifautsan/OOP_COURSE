@@ -6,16 +6,13 @@ ADD_SUBDIRECTORY(googletest)
 enable_testing()
 
 set(PROJECT_INCLUDES
-    src/block_cipher.hpp
-    src/mode.hpp
-    src/coder.hpp
+    src/cryptography.hpp
+    src/serialize_sfinae.hpp
+    src/trie.hpp
 )
 
 set(PROJECT_SOURCES
-    src/xor_cipher.cpp
-    src/ecb.cpp
-    src/cbc.cpp
-    src/tests.cpp
+    src/cryptography_test.cpp
     src/main.cpp
 )
 
@@ -27,4 +24,4 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} gtest)
 set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
