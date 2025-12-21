@@ -3,11 +3,60 @@
 #include <iostream>
 #include <iterator>
 #include <algorithm>
-#include <type_traits>
 #include <cstdint>
-#include <string>
-#include <utility>
+#include <type_traits>
+#include <concepts>
 
+#include <string>
+
+
+//======================================CONCEPTS======================================
+template<typename T>
+concept String = std::is_same_v<T, std::string>;
+
+
+template <typename ContainerType>
+concept StandartContainer = !String<ContainerType> && requires(ContainerType& c)
+{
+    { c.begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.end() } -> std::same_as<typename ContainerType::iterator>;
+    { c.size() } -> std::same_as<typename ContainerType::size_type>;
+
+    { c.clear() };
+};
+
+
+template <typename ContainerType>
+concept SequentialContainer = StandartContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v) 
+{
+    c.push_back(v);
+};
+
+
+template <typename ContainerType>
+concept AssociativeContainer = StandartContainer<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v)
+{
+    typename ContainerType::key_type;
+    { c.insert(v) };
+};
+
+
+template <typename ContainerType>
+concept ForwardListContainer = !String<ContainerType> && requires(ContainerType& c, typename ContainerType::value_type v, typename ContainerType::iterator it)
+{
+    { c.begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.end() } -> std::same_as<typename ContainerType::iterator>;
+    { c.before_begin() } -> std::same_as<typename ContainerType::iterator>;
+    { c.clear() };
+    { c.insert_after(it, v) };
+};
+
+
+
+
+
+
+//===========================SERIALIZE/DESERIALIZE DECLARATIONS===========================
 
 template <typename T>
 void serialize(const T& obj, std::ostream& os);
@@ -16,78 +65,16 @@ template <typename T>
 void deserialize(T& obj, std::istream& is);
 
 
-template <typename ContainerType, typename = void>
-struct has_begin_end : std::false_type{};
-
-template <typename ContainerType>
-struct has_begin_end<ContainerType, 
-                    std::void_t<decltype(std::declval<ContainerType>().begin(), (std::declval<ContainerType>().end()))>>
-    : std::true_type{};
 
 
+//==================ALL SERIALIZER/DESERIALIZER TEMPLATES IMPLEMETATIONS==================
 
-template <typename ContainerType, typename = void>
-struct has_size : std::false_type{};
-
-template <typename ContainerType>
-struct has_size<ContainerType, std::void_t<decltype(std::declval<ContainerType>().size())>>
-    : std::true_type{};
-
-
-
-template <typename ContainerType, typename = void>
-struct has_clear : std::false_type{};
-
-template <typename ContainerType>
-struct has_clear<ContainerType, std::void_t<decltype(std::declval<ContainerType>().clear())>>
-    : std::true_type{};
-
-
-
-template <typename ContainerType, typename = void>
-struct has_push_back : std::false_type{};
-
-template <typename ContainerType>
-struct has_push_back<ContainerType, std::void_t<decltype(std::declval<ContainerType>().push_back(std::declval<typename ContainerType::value_type>()))>>
-    : std::true_type{};
-
-
-
-template <typename ContainerType, typename = void>
-struct has_insert : std::false_type{};
-
-template <typename ContainerType>
-struct has_insert<ContainerType, std::void_t<decltype(std::declval<ContainerType>().insert(std::declval<typename ContainerType::value_type>()))>>
-    : std::true_type{};
-
-
-
-template <typename ContainerType, typename = void>
-struct has_before_begin : std::false_type{};
-
-template <typename ContainerType>
-struct has_before_begin<ContainerType, std::void_t<decltype(std::declval<ContainerType>().before_begin())>>
-    : std::true_type{};
-
-
-
-template <typename ContainerType, typename = void>
-struct has_insert_after : std::false_type{};
-
-template <typename ContainerType>
-struct has_insert_after<ContainerType, std::void_t<decltype(std::declval<ContainerType>().insert_after(
-                                            std::declval<typename ContainerType::iterator>(), 
-                                            std::declval<typename ContainerType::value_type>()
-                                        ))>>
-    : std::true_type{};
-
-
-template <typename T, typename = void>
+template <typename T>
 struct serializer
 {
     static void apply(const T& obj, std::ostream& os)
     {
-        // std::cout << "Using sfinae serializer" << std::endl;
+        // std::cout << "Using concepts serializer" << std::endl;
 
         const uint8_t* ptr = reinterpret_cast<const uint8_t *>(&obj);
 
@@ -97,8 +84,7 @@ struct serializer
     }
 };
 
-
-template <typename T, typename = void>
+template <typename T>
 struct deserializer
 {
     static void apply(T& val, std::istream& is)
@@ -114,6 +100,11 @@ struct deserializer
 };
 
 
+// ===Supporting std::string===
+/*
+The idea behind serializing a string is that we write not only the bytes that 
+represent the charachters of the string, but also the size of the string.
+*/
 template <>
 struct serializer<std::string>
 {
@@ -134,7 +125,6 @@ struct serializer<std::string>
         }
     }
 };
-
 
 template <>
 struct deserializer<std::string>
@@ -158,6 +148,12 @@ struct deserializer<std::string>
     }
 };
 
+
+/*
+I try to make serializer and deserializer of std::pair that uses for reading and 
+writing std::map keys and values. But this solution seemed difficult for me. So I 
+realized separate serializer and deserializer for std::map using concept MapContainer
+*/
 
 template <typename T1, typename T2>
 struct serializer<std::pair<T1, T2>>
@@ -187,14 +183,13 @@ struct deserializer<std::pair<const T1, T2>>
 
 
 
-
-
-template <typename ContainerType>
-struct serializer<ContainerType, std::enable_if_t<has_size<ContainerType>::value && has_begin_end<ContainerType>::value>>
+// ===Sequential and associative containers===
+template <StandartContainer ContainerType>
+struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
-        std::cout << "Using serializer for standart container" << std::endl;
+        // std::cout << "Using serializer for standart container" << std::endl;
 
         // Write the len of the container
         const uint32_t len = static_cast<uint32_t>(c.size());
@@ -206,9 +201,8 @@ struct serializer<ContainerType, std::enable_if_t<has_size<ContainerType>::value
     }
 };
 
-
-template <typename ContainerType>
-struct deserializer<ContainerType, std::enable_if_t<has_clear<ContainerType>::value && has_push_back<ContainerType>::value>>
+template <SequentialContainer ContainerType>
+struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
@@ -230,13 +224,12 @@ struct deserializer<ContainerType, std::enable_if_t<has_clear<ContainerType>::va
     }
 };
 
-
-template <typename ContainerType>
-struct deserializer<ContainerType, std::enable_if_t<has_size<ContainerType>::value && has_insert<ContainerType>::value>>
+template <AssociativeContainer ContainerType>
+struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
-        std::cout << "Using deserializer for associative container" << std::endl;
+        // std::cout << "Using deserializer for associative container" << std::endl;
 
         c.clear();
 
@@ -255,14 +248,17 @@ struct deserializer<ContainerType, std::enable_if_t<has_size<ContainerType>::val
 };
 
 
-template <typename ContainerType>
-struct serializer<ContainerType, std::enable_if_t<(!has_size<ContainerType>::value) && has_begin_end<ContainerType>::value>>
+template <ForwardListContainer ContainerType>
+struct serializer<ContainerType>
 {
     static void apply(const ContainerType& c, std::ostream& os)
     {
         // std::cout << "Using serializer for forward_list container" << std::endl;
 
         // Write the len of the container
+        // uint32_t len = 0;
+        // for (const auto& obj : c)
+        //     ++len;
         uint32_t len = static_cast<uint32_t>(std::distance(c.begin(), c.end()));
         serialize(len, os);
 
@@ -273,8 +269,8 @@ struct serializer<ContainerType, std::enable_if_t<(!has_size<ContainerType>::val
 };
 
 
-template <typename ContainerType>
-struct deserializer<ContainerType, std::enable_if_t<has_clear<ContainerType>::value && has_insert_after<ContainerType>::value && has_before_begin<ContainerType>::value>>
+template <ForwardListContainer ContainerType>
+struct deserializer<ContainerType>
 {
     static void apply(ContainerType& c, std::istream& is)
     {
@@ -298,6 +294,10 @@ struct deserializer<ContainerType, std::enable_if_t<has_clear<ContainerType>::va
     }
 };
 
+
+
+
+//========================SERIALIZE/DESERIALIZE IMPLEMENTSTIONS===========================
 
 template <typename T>
 void serialize(const T& obj, std::ostream& os)

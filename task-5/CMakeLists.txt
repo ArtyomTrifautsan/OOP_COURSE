@@ -7,7 +7,7 @@ enable_testing()
 
 set(PROJECT_INCLUDES
     src/cryptography.hpp
-    src/serialize_sfinae.hpp
+    src/serialize_concepts.hpp
     src/trie.hpp
 )
 
