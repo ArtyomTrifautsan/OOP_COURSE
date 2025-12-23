@@ -45,8 +45,16 @@ void consumer_thread(ImageFIFO& fifo, int totalFrames) {
 
 TEST(CommonUsage, Simple)
 {
-    
-
     ImageFIFO fifo(BLOCK_SIZE, MAX_BLOCKS);
     int framesToProcess = 10;
+
+    std::cout << "--- Запуск многопоточного теста ---" << std::endl;
+
+    std::thread t1(producer_thread, std::ref(fifo), framesToProcess);
+    std::thread t2(consumer_thread, std::ref(fifo), framesToProcess);
+
+    t1.join();
+    t2.join();
+
+    std::cout << "--- Тест успешно завершен ---" << std::endl;
 }
