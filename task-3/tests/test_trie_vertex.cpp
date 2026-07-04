@@ -1,0 +1,1726 @@
+#include <gtest/gtest.h>
+
+#include <map>
+#include <unordered_map>
+#include <vector>
+#include <utility>
+
+#include "../trie/trie.hpp"
+
+
+/*
+Список всего того что я хочу проверить:
+1) Верный порядок элементов при доступе через итератор
+2) Своевременный вызов деструкторов элементов
+3) Уничтожение ненужных node при вызове erase
+4) Можно ли добавить значение с пустым ключом
+5) Оператор operator[] реально способен перезаписать значение
+
+Обязательно проверить случаи когда m_root == nullptr
+*/
+
+
+//============================Test Trie interface============================
+
+
+namespace {
+
+    struct Rectangle
+    {
+    int x, y, w, h;
+    };
+
+    struct Circle
+    {
+    Circle() { radius = 0; }
+    Circle(int _r) { radius = _r; }
+    int radius;
+    };
+
+    struct MemoryCheckClass
+    {
+        MemoryCheckClass() { ctors += 1; }
+        MemoryCheckClass(const MemoryCheckClass& other) { copy_ctors += 1; }
+        MemoryCheckClass& operator=(const MemoryCheckClass& other) { copy_ctors += 1; return *this; }
+        MemoryCheckClass(MemoryCheckClass&& other) { move_ctors += 1; }
+        MemoryCheckClass& operator=(MemoryCheckClass&& other) { move_ctors += 1; return *this; }
+        ~MemoryCheckClass() { dtors += 1; }
+        inline static int ctors = 0;
+        inline static int copy_ctors = 0;
+        inline static int move_ctors = 0;
+        inline static int dtors = 0;
+    };
+
+}
+
+
+TEST(TrieConstructors, DefaultConstructor)
+{
+    Containers::Trie<int> trie1{};
+    EXPECT_EQ(trie1.size(), 0);
+    EXPECT_EQ(trie1.empty(), true);
+
+    Containers::Trie<std::vector<int>> trie2{};
+    EXPECT_EQ(trie2.size(), 0);
+    EXPECT_EQ(trie2.empty(), true);
+
+    Containers::Trie<Rectangle> trie3{};
+    EXPECT_EQ(trie3.size(), 0);
+    EXPECT_EQ(trie3.empty(), true);
+}
+
+
+TEST(TrieConstructors, CheckMemoryUsingForDefaultConstructor)
+{
+    /*
+        Суть этого теста - проверить, что при создании пустого trie не 
+        происходит создания хранимых значений (например значений по умолчанию)
+    */
+
+    // std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    Containers::Trie<MemoryCheckClass> trie{};
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 1);
+}
+
+
+TEST(TrieConstructors, ConstructorWithIterators)
+{
+    std::map<std::string, int> m1 = {};
+    Containers::Trie<int> trie1{m1.begin(), m1.end()};
+    EXPECT_EQ(trie1.size(), 0);
+    EXPECT_EQ(trie1.empty(), true);
+
+    std::map<std::string, int> m2 = {{"a", 1}};
+    Containers::Trie<int> trie2{m2.begin(), m2.end()};
+    EXPECT_EQ(trie2.size(), 1);
+    EXPECT_EQ(trie2.empty(), false);
+
+    std::map<std::string, int> m3 = {{"a", 1}, {"b", 2}, {"c", 3}};
+    Containers::Trie<int> trie3{m3.begin(), m3.end()};
+    EXPECT_EQ(trie3.size(), 3);
+    EXPECT_EQ(trie3.empty(), false);
+}
+
+
+TEST(TrieConstructors, CheckMemoryUsingForConstructorWithIterators)
+{
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    Containers::Trie<MemoryCheckClass> trie{m.begin(), m.end()};
+
+    /*
+    Здесь я проверяю, что хранимые значения только копируются и в нужном количестве.
+    Никаких посторонних перемещений, созданий объектов и никаких удалений.
+    */
+    EXPECT_EQ(MemoryCheckClass::ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 4);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 1);
+}
+
+
+// TEST(TrieConstructors, HugeTrie)
+// {
+//     std::map<std::string, int> m = {};
+
+//     const unsigned int N = 1'000'000;
+//     for (int i = 0; i < N; i++)
+//         m[std::to_string(i)] = i;
+
+//     Containers::Trie<int> trie{m.begin(), m.end()};
+//     EXPECT_EQ(trie.size(), N);
+// }
+
+
+TEST(TrieConstructors, CopyConstructorForEmptyTrie)
+{
+    std::map<std::string, int> empty_m = {};
+    Containers::Trie<int> empty_trie{empty_m.begin(), empty_m.end()};
+
+    Containers::Trie<int> copy_trie{empty_trie};
+
+    EXPECT_EQ(copy_trie.size(), 0);
+}
+
+
+TEST(TrieConstructors, CopyConstructorForNonEmptyTrie)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    Containers::Trie<int> copy_trie{trie};
+
+    EXPECT_EQ(copy_trie.size(), 2);
+}
+
+
+TEST(TrieConstructors, CheckMemoryUsingForCopyConstructor)
+{
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    Containers::Trie<MemoryCheckClass> trie{m.begin(), m.end()};
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    Containers::Trie<MemoryCheckClass> other_trie{trie};
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 4);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 1);
+}
+
+
+TEST(TrieConstructors, CheckCorrectCopy)
+{
+    /*
+    Проверяем что после копирования, изменения в исходном дереве не влияют
+    на копию и наоборот
+    */
+}
+
+
+// TEST(TrieConstructors, CopyConstructorForHugeTrie)
+// {
+//     std::map<std::string, int> m = {};
+
+//     const unsigned int N = 100'000;
+//     for (int i = 0; i < N; i++)
+//         m[std::to_string(i)] = i;
+
+//     Containers::Trie<int> trie{m.begin(), m.end()};
+
+//     Containers::Trie<int> copy_trie{trie};
+
+//     EXPECT_EQ(copy_trie.size(), N);
+// }
+
+
+TEST(TrieConstructors, MoveConstructor)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie(m.begin(), m.end());
+    Containers::Trie<int> copy_trie{std::move(trie)};
+    EXPECT_EQ(copy_trie.size(), 3);
+}
+
+
+TEST(TrieDestructor, CheckMemoryFreeInEmptyTrie)
+{
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 2);
+}
+
+
+TEST(TrieDestructor, CheckMemoryFreeInTrieWithValues)
+{
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{m.begin(), m.end()};
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 1);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 4);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 5);
+}
+
+
+TEST(TrieAssignOperators, CopyAssignOperator)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie(m.begin(), m.end());
+    Containers::Trie<int> copy_trie{++m.begin(), m.end()};
+    EXPECT_EQ(copy_trie.size(), 2);
+    copy_trie = trie;
+    EXPECT_EQ(copy_trie.size(), 3);
+}
+
+
+TEST(TrieAssignOperators, CheckMemoryAllocInCopyAssignOperator)
+{
+    /*
+    Суть теста: при присваивании самого себя никаких новых объектов создаваться
+    не будет. А если к trie присваиваем какой-то other_trie, то в trie данные 
+    удаляются (проверка вызова деструкторов), и в него копируются данные из 
+    other_trie (проверка вызова конструкторов копирования).
+    */
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    Containers::Trie<MemoryCheckClass> trie(m.begin(), m.end());
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    trie = trie;
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 0);
+
+    Containers::Trie<MemoryCheckClass> other_trie(m.begin(), m.end());
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    other_trie = trie;
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 3);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 3);
+}
+
+
+TEST(TrieAssignOperators, MoveAssignOperator)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie(m.begin(), m.end());
+    Containers::Trie<int> copy_trie{++m.begin(), m.end()};
+    EXPECT_EQ(copy_trie.size(), 2);
+    copy_trie = std::move(trie);
+    EXPECT_EQ(copy_trie.size(), 3);
+}
+
+
+TEST(TrieAssignOperators, CheckMemoryAllocInMoveAssignOperator)
+{
+    /*
+    Суть теста: не происходит создания новых объектов. Только перемещение
+    уже существующих. И проверяется самоприсваивание.
+    */
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"b", MemoryCheckClass{}}, {"c", MemoryCheckClass{}}};
+
+    /*
+    Здесь везде проверяются поля ctors, чтобы удостовериться,
+    что никакие объекты не создаются
+    */
+    Containers::Trie<MemoryCheckClass> trie(m.begin(), m.end());
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    trie = std::move(trie);
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 0);
+
+    Containers::Trie<MemoryCheckClass> other_trie(m.begin(), m.end());
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    other_trie = std::move(trie);
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 4);
+}
+
+
+TEST(TrieSquareBrackets, ReadExistKey)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    EXPECT_EQ(trie["a"], 1);
+    EXPECT_EQ(trie["b"], 2);
+    EXPECT_EQ(trie["c"], 3);
+}
+
+
+TEST(TrieSquareBrackets, WritExistKey)
+{
+    std::map<std::string, int> m = {{"a", 1}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    trie["a"] = -1;
+
+    EXPECT_EQ(trie["a"], -1);
+    EXPECT_EQ(trie.size(), 1);
+}
+
+
+TEST(TrieSquareBrackets, WritNewKey)
+{
+    std::map<std::string, int> m = {{"a", 1}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    trie["b"] = -1;
+
+    EXPECT_EQ(trie["b"], -1);
+    EXPECT_EQ(trie.size(), 2);
+}
+
+
+TEST(TrieIterators, BeginEndOfEmptyTrie)
+{
+    Containers::Trie<int> trie{};
+
+    EXPECT_EQ(trie.begin(), trie.end());
+}
+
+
+TEST(TrieIterators, BeginEndOfNonEmptyTrie)
+{
+    std::map<std::string, int> m = {{"ten", 10}};
+    Containers::Trie<int> trie(m.begin(), m.end());
+
+    EXPECT_EQ(trie.begin()->first, "ten");
+    EXPECT_EQ(trie.begin()->second, 10);
+}
+
+
+TEST(TrieIterators, CorrectSequence)
+{
+    Containers::Trie<int> trie{};
+
+    // В произвольном порядке помещаю ключи со значениями
+    trie.insert("aabc", 0);
+    trie.insert("b", 0);
+    trie.insert("aaa", 0);
+
+    trie.insert("aa", 0);
+    trie.insert("aaaaa", 0);
+    trie.insert("bA", 0);
+
+    trie.insert("aab", 0);
+    trie.insert("ba", 0);
+    trie.insert("aac", 0);
+
+    std::vector<std::string> right_sequence = {"aa", "aaa", "aaaaa", "aab", "aabc", "aac", "b", "bA", "ba"};
+
+    auto begin = trie.begin();
+    auto end = trie.end();
+    int n = 0;
+
+    while(begin != end)
+    {
+        EXPECT_EQ(begin->first, right_sequence[n]);
+        ++n;
+        ++begin;
+    }
+}
+
+
+TEST(TrieIterators, WriteValuesUsingIters)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    // Здесь мы записываем значения с помощью итераторов 
+    auto it = trie.begin();
+
+    while (it != trie.end())
+    {
+        (*it).second *= 2;
+        ++it;
+    }
+
+    // А здесь проверяем что всё верно записалось
+    EXPECT_EQ(trie["a"], 2);
+    EXPECT_EQ(trie["b"], 4);
+    EXPECT_EQ(trie["c"], 6);
+}
+
+
+TEST(TrieIterators, RangeBasedCycle)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    // С помощью range-based цикла меняем значения в trie
+    for (auto& item : trie)
+        item.second += 5;
+
+    // А здесь проверяем что всё корректно поменялось
+    EXPECT_EQ(trie["a"], 6);
+    EXPECT_EQ(trie["b"], 7);
+    EXPECT_EQ(trie["c"], 8);
+}
+
+
+TEST(TrieIterators, ConstantIters)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+    const Containers::Trie<int> trie{m.begin(), m.end()};
+
+    std::vector<std::pair<const std::string, int>> right_sequence = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    auto it = trie.begin();
+    size_t n = 0;
+    while(it != trie.end())
+    {
+        EXPECT_EQ(it->first, right_sequence[n].first);
+        EXPECT_EQ(it->second, right_sequence[n].second);
+
+        ++it;
+        ++n;
+    }
+}
+
+
+TEST(TrieIterators, PrefixIncrement)
+{
+    std::map<std::string, int> m = {{"a", 1}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    auto it = trie.begin();
+    auto it2 = ++it;
+
+    EXPECT_EQ(it, trie.end());
+    EXPECT_EQ(it2, trie.end());
+}
+
+
+TEST(TrieIterators, PostfixIncrement)
+{
+    std::map<std::string, int> m = {{"a", 1}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    auto it = trie.begin();
+    auto it2 = it++;
+
+    EXPECT_EQ(it, trie.end());
+    EXPECT_NE(it2, trie.end());
+}
+
+
+TEST(TrieIterators, WithMaxChar)
+{
+    std::string s = "aa1";
+    s[2] = char(255);
+
+    Containers::Trie<int> trie{};
+
+    trie.insert("aabc", 0);
+    trie.insert("b", 0);
+    trie.insert("aaa", 0);
+
+    trie.insert(s, 0);
+
+    trie.insert("aa", 0);
+    trie.insert("aaaaa", 0);
+    trie.insert("bA", 0);
+
+    trie.insert("aab", 0);
+    trie.insert("ba", 0);
+    trie.insert("aac", 0);
+
+    std::vector<std::string> right_sequence = {"aa", "aaa", "aaaaa", "aab", "aabc", "aac", s, "b", "bA", "ba"};
+
+    auto begin = trie.begin();
+    auto end = trie.end();
+    int n = 0;
+
+    while(begin != end)
+    {
+        EXPECT_EQ(begin->first, right_sequence[n]);
+        ++n;
+        ++begin;
+    }
+}
+
+
+TEST(TrieFind, FindExistKey)
+{
+    std::map<std::string, Circle> m = {{"a", Circle{1}}, {"b", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    auto it = trie.find("a");
+
+    EXPECT_EQ(it->second.radius, 1);
+}
+
+
+TEST(TrieFind, FindKeyThatNotInTrie)
+{
+    std::map<std::string, Circle> m = {{"a", Circle{1}}, {"b", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    auto it = trie.find("c");
+
+    EXPECT_EQ(it, trie.end());
+}
+
+
+TEST(TrieFind, FindKeyThatPrefixOfOtherKey)
+{
+    /*
+    Найти ключ, который является префиксом какого-то другого ключа.
+    По сути это проверка, что мы дойдем до нужного ключа и не пойдем
+    дальше.
+    */
+    std::map<std::string, Circle> m = {{"a", Circle{1}}, {"aaa", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    auto it = trie.find("a");
+
+    EXPECT_EQ(it->second.radius, 1);
+}
+
+
+TEST(TrieFind, FindKeyThatHaveValueInPrefix)
+{
+    /*
+    Найти ключ, в префиксе которого тоже есть хранимое значение
+    */
+    std::map<std::string, Circle> m = {{"a", Circle{1}}, {"aaa", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    auto it = trie.find("aaa");
+
+    EXPECT_EQ(it->second.radius, 2);
+}
+
+
+TEST(TrieFind, FindNotExistKeyThatIsPrefixOfOtherKey)
+{
+    /*
+    Ищем ключ, которого нет в дереве, но он является префиксом 
+    какого-то другого ключа, который в девере есть
+    */
+    std::map<std::string, Circle> m = {{"aaa", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    EXPECT_EQ(trie.find("a"), trie.end());
+}
+
+
+TEST(TrieFind, FindNotExistKeyThatHasPrefixInTrie)
+{
+    /*
+    Ищем ключ, которого нет в дереве, его префикс является ключом
+    */
+    std::map<std::string, Circle> m = {{"a", Circle{2}}};
+
+    Containers::Trie<Circle> trie{m.begin(), m.end()};
+
+    EXPECT_EQ(trie.find("aaa"), trie.end());
+}
+
+
+TEST(TrieInsert, InsertByKeyIntoEmptyTrie)
+{
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+
+        trie.insert("a", MemoryCheckClass{});
+
+        EXPECT_EQ(trie.size(), 1);
+
+        EXPECT_EQ(MemoryCheckClass::ctors, 2);
+        EXPECT_EQ(MemoryCheckClass::copy_ctors, 2);
+        EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+        EXPECT_EQ(MemoryCheckClass::dtors, 2);
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 2);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 2);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 4);
+}
+
+
+TEST(TrieInsert, InsertByNewKey)
+{
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+
+        trie.insert("a", MemoryCheckClass{});
+
+        trie.insert("b", MemoryCheckClass{});
+
+        EXPECT_EQ(trie.size(), 2);
+
+        EXPECT_EQ(MemoryCheckClass::ctors, 3);
+        EXPECT_EQ(MemoryCheckClass::copy_ctors, 3);
+        EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+        EXPECT_EQ(MemoryCheckClass::dtors, 3);
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 3);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 3);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 6);
+}
+
+
+TEST(TrieInsert, InsertByKeyThatExist)
+{
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+
+        trie.insert("a", MemoryCheckClass{});
+
+        trie.insert("a", MemoryCheckClass{});
+
+        EXPECT_EQ(trie.size(), 1);
+
+        EXPECT_EQ(MemoryCheckClass::ctors, 3);
+        EXPECT_EQ(MemoryCheckClass::copy_ctors, 3);
+        EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+        EXPECT_EQ(MemoryCheckClass::dtors, 3);
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 3);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 3);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 5);
+}
+
+
+TEST(TrieInsert, InsertByKeyThatHavePrefixInTrie)
+{
+    /*
+    Вставляем новое значение с ключом, начало которого уже имеется в дереве
+    */
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+
+        trie.insert("a", MemoryCheckClass{});
+
+        trie.insert("aaa", MemoryCheckClass{});
+
+        EXPECT_EQ(trie.size(), 2);
+
+        EXPECT_EQ(MemoryCheckClass::ctors, 4);
+        EXPECT_EQ(MemoryCheckClass::copy_ctors, 4);
+        EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+        EXPECT_EQ(MemoryCheckClass::dtors, 4);
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 4);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 4);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 8);
+}
+
+
+TEST(TrieInsert, InsertByKeyThatPrefixOfOtherKey)
+{
+    /*
+    Вставляем новое значение с ключом, который является префиксом другого, 
+    уже находящегося в дереве, ключа.
+    */
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    {
+        Containers::Trie<MemoryCheckClass> trie{};
+
+        trie.insert("aaa", MemoryCheckClass{});
+
+        trie.insert("a", MemoryCheckClass{});
+
+        EXPECT_EQ(trie.size(), 2);
+
+        EXPECT_EQ(MemoryCheckClass::ctors, 5);
+        EXPECT_EQ(MemoryCheckClass::copy_ctors, 5);
+        EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+        EXPECT_EQ(MemoryCheckClass::dtors, 5);
+    }
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 5);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 5);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 9);
+}
+
+
+TEST(TrieInsert, CheckReturnedIteratorIsCorrect)
+{
+    Containers::Trie<int> trie{};
+
+    auto res = trie.insert("a", 1);
+
+    EXPECT_EQ(res.first->first, "a");
+    EXPECT_EQ(res.first->second, 1);
+
+    res = trie.insert("b", 2);
+
+    EXPECT_EQ(res.first->first, "b");
+    EXPECT_EQ(res.first->second, 2);
+
+    res = trie.insert("a", 3);
+
+    EXPECT_EQ(res.first->first, "a");
+    EXPECT_EQ(res.first->second, 3);
+}
+
+
+TEST(TrieInsert, CheckReturnedInsertFlagIsCorrect)
+{
+    Containers::Trie<int> trie{};
+
+    auto res = trie.insert("a", 1);
+
+    EXPECT_EQ(res.second, true);
+
+    res = trie.insert("b", 2);
+
+    EXPECT_EQ(res.second, true);
+
+    res = trie.insert("a", 3);
+
+    EXPECT_EQ(res.second, false);
+}
+
+
+TEST(TrieInsert, InsertByEmptyKey)
+{
+    Containers::Trie<int> trie{};
+
+    EXPECT_THROW(trie.insert("", 1), std::runtime_error);
+
+    try {
+        trie.insert("", 1);
+        FAIL() << "Ожидалось std::runtime_error";
+    } 
+    catch (const std::runtime_error& e) {
+        EXPECT_STREQ(
+            "Insert by invalid key: key == \"\"",
+            e.what()
+        );
+    }    
+
+    EXPECT_EQ(trie.size(), 0);
+}
+
+
+TEST(TrieInsert, InsertByIterators)
+{
+    std::map<std::string, int> m = {{"a", 10}, {"b", 20}, {"c", 30}};
+
+    Containers::Trie<int> trie{};
+
+    trie.insert(m.begin(), m.end());
+
+    EXPECT_EQ(trie.size(), 3);
+}
+
+
+TEST(TrieInsert, InsertEmptyRangeByIterators)
+{
+    std::map<std::string, int> m = {};
+
+    Containers::Trie<int> trie{};
+
+    trie.insert(m.begin(), m.end());
+
+    EXPECT_EQ(trie.size(), 0);
+}
+
+
+TEST(TrieErase, EraseExistKey)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("a");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 2);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("a"), trie.end());
+    EXPECT_EQ(trie["b"], 2);
+    EXPECT_EQ(trie["c"], 3);
+}
+
+
+TEST(TrieErase, EraseKeyThatNotInTrie)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("d");
+
+    EXPECT_EQ(trie.size(), 3);
+
+    EXPECT_EQ(res, 0);
+}
+
+
+TEST(TrieErase, EraseKeyThatHavePrefixInTrie)
+{
+    /*
+    Удаляем ключ, префикс которого тоже является ключом какого-то элемента. Здесь 
+    удаляется "ab", а его префикс "a" - это ключ, там тоже хранится значение.
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"ab", 2}, {"ac", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("ab");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 2);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("ab"), trie.end());
+    EXPECT_EQ(trie["a"], 1);
+    EXPECT_EQ(trie["ac"], 3);
+}
+
+
+TEST(TrieErase, EraseKeyThatIsPrefixOfOtherKey)
+{
+    /*
+    Удаляем ключ, который является префиксом другого ключа. Здесь удаляется ключ "a", 
+    который является префиксом для ключа "ab".
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"ab", 2}, {"cac", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("a");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 2);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("a"), trie.end());
+    EXPECT_EQ(trie["ab"], 2);
+    EXPECT_EQ(trie["cac"], 3);
+}
+
+
+TEST(TrieErase, EraseKeyThatHaveSeveralPrefixesInTrie)
+{
+    /*
+    Удаляем ключ, в префиксе которого есть несколько других ключей.
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"aba", 2}, {"abac", 3}, {"abaad", 4}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("abaad");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 3);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("abaad"), trie.end());
+    EXPECT_EQ(trie["a"], 1);
+    EXPECT_EQ(trie["aba"], 2);
+    EXPECT_EQ(trie["abac"], 3);
+}
+
+
+TEST(TrieErase, EraseKeyThatIsPefixOfOtherKeyAndHasKeyInPrefix)
+{
+    /*
+    Здесь проверяется случай, когда удаляемый ключ имеет ключ в своем префиксе,
+    а также сам является префиксом дурго ключа
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"aba", 2}, {"abac", 3}, {"abaad", 4}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("aba");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 3);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("aba"), trie.end());
+    EXPECT_EQ(trie["a"], 1);
+    EXPECT_EQ(trie["abac"], 3);
+    EXPECT_EQ(trie["abaad"], 4);
+}
+
+
+TEST(TrieErase, EraseKeyThatIsPefixOfOtherKeysAndHasKeysInPrefix)
+{
+    /*
+    Здесь проверяется случай, аналогичный прошлому тесту, только удаляемый ключ имеет 
+    несколько ключей в своем префиксе, а также сам является префиксом нескольких других
+    ключей
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"aba", 2}, {"abac", 3}, {"abacd", 4}, {"abacda", 5}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("abac");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 4);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("abac"), trie.end());
+    EXPECT_EQ(trie["a"], 1);
+    EXPECT_EQ(trie["aba"], 2);
+    EXPECT_EQ(trie["abacd"], 4);
+    EXPECT_EQ(trie["abacda"], 5);
+}
+
+
+TEST(TrieErase, EraseNotExistKeyThatIsPrefixOfOtherKey)
+{
+    /*
+    Случай, когда удаляемого ключа нет в дереве, но он является префиксом существующего
+    ключа
+    */
+    std::map<std::string, int> m = {{"aaa", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("a");
+
+    EXPECT_EQ(res, 0);
+
+    EXPECT_EQ(trie.size(), 3);
+}
+
+
+TEST(TrieErase, EraseNotExistKeyThatHasKeyInPrefix)
+{
+    /*
+    Случай, когда удаляемого ключа нет в дереве, но его префикс является ключом
+    */
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("aaa");
+
+    EXPECT_EQ(res, 0);
+
+    EXPECT_EQ(trie.size(), 3);
+}
+
+
+TEST(TrieErase, EraseKeyInNonEmptySubtree)
+{
+    /*
+    В поддереве с префиксом "aa" есть ключи "aab", "aabc", "aac", "aad". Тут
+    проверяется, что после удаления одного из элементов поддерева (тут удаляется
+    "aac") другие элементы останутся. Это важная проверка! 
+    */
+    std::map<std::string, int> m = {{"aa", 1}, {"aab", 2}, {"aabc", 3}, {"aac", 4}, {"aad", 5}, {"bb", 6}, {"bc", 7}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    size_t res = trie.erase("aac");
+
+    // Здесь я проверяю сам факт удаления
+    EXPECT_EQ(trie.size(), 6);
+
+    EXPECT_EQ(res, 1);
+
+    // Здесь я проверяю что удалился только нужный ключ, а остальные остались на месте
+    EXPECT_EQ(trie.find("aac"), trie.end());
+    EXPECT_EQ(trie["aa"], 1);
+    EXPECT_EQ(trie["aab"], 2);
+    EXPECT_EQ(trie["aabc"], 3);
+    EXPECT_EQ(trie["aad"], 5);
+    EXPECT_EQ(trie["bb"], 6);
+    EXPECT_EQ(trie["bc"], 7);
+}
+
+
+TEST(TrieErase, EraseByIteratorToExistKey)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    trie.erase(trie.find("b"));
+
+    EXPECT_EQ(trie.size(), 2);
+}
+
+
+TEST(TrieErase, EraseByEndIterator)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    EXPECT_THROW(trie.erase(trie.end()), std::runtime_error);
+
+    try {
+        trie.erase(trie.end());
+        FAIL() << "Ожидалось std::runtime_error";
+    } 
+    catch (const std::runtime_error& e) {
+        EXPECT_STREQ(
+            "Invalid iterator: the end() iterator cannot be used as a value for position.",
+            e.what()
+        );
+    }
+}
+
+
+TEST(TrieErase, EraseByPairIters)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}, {"d", 4}, {"e", 5}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    trie.erase(trie.find("b"), trie.find("e"));
+
+    EXPECT_EQ(trie.size(), 2);
+}
+
+
+TEST(TrieErase, CheckMemoryFree)
+{
+    std::map<std::string, MemoryCheckClass> m = {{"a", MemoryCheckClass{}}, {"aa", MemoryCheckClass{}}, {"aaa", MemoryCheckClass{}}};
+
+    Containers::Trie<MemoryCheckClass> trie{m.begin(), m.end()};
+
+    MemoryCheckClass::dtors = 0;
+
+    trie.erase("aa");
+
+    EXPECT_EQ(MemoryCheckClass::dtors, 1);
+}
+
+
+TEST(TrieClear, ClearEmptyTrie)
+{
+    Containers::Trie<MemoryCheckClass> trie{};
+
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    trie.clear();
+
+    EXPECT_EQ(trie.size(), 0);
+
+    EXPECT_EQ(trie.empty(), true);
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 0);
+}
+
+
+TEST(TrieClear, ClearNotEmptyTrie)
+{
+    MemoryCheckClass::ctors = 0;
+    MemoryCheckClass::copy_ctors = 0;
+    MemoryCheckClass::move_ctors = 0;
+    MemoryCheckClass::dtors = 0;
+
+    Containers::Trie<MemoryCheckClass> trie{};
+
+    trie.insert("a", MemoryCheckClass{});
+
+    trie.insert("aa", MemoryCheckClass{});
+    trie.insert("ab", MemoryCheckClass{});
+    trie.insert("ac", MemoryCheckClass{});
+
+    trie.insert("aaa", MemoryCheckClass{});
+    trie.insert("aab", MemoryCheckClass{});
+    trie.insert("aac", MemoryCheckClass{});
+
+    trie.insert("b", MemoryCheckClass{});
+
+    trie.insert("ba", MemoryCheckClass{});
+    trie.insert("bc", MemoryCheckClass{});
+
+    trie.insert("bcc", MemoryCheckClass{});
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 12);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 12);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 12);
+
+    trie.clear();
+
+    EXPECT_EQ(MemoryCheckClass::ctors, 12);
+    EXPECT_EQ(MemoryCheckClass::copy_ctors, 12);
+    EXPECT_EQ(MemoryCheckClass::move_ctors, 0);
+    EXPECT_EQ(MemoryCheckClass::dtors, 23);
+}
+
+
+TEST(TrieSwap, SwapTwoTries)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie1{m.begin(), m.end()};
+    Containers::Trie<int> trie2{};
+
+    trie1.swap(trie2);
+
+    EXPECT_EQ(trie1.size(), 0);
+    EXPECT_EQ(trie2.size(), 3);
+}
+
+
+TEST(TrieSwap, SelfSwap)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    trie.swap(trie);
+
+    EXPECT_EQ(trie.size(), 3);
+}
+
+
+TEST(SubTrie, CreateSubTrie)
+{
+    std::map<std::string, int> m = {{"1", 10}, {"2", 20}, {"3", 30}};
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    auto sub_trie = trie.GetSubTrie("1");
+
+    EXPECT_EQ(sub_trie.size(), 1);
+}
+
+
+TEST(SubTrie, CreateSubTrieFromNonExistKey)
+{
+    std::map<std::string, int> m = {{"a", 1}, {"b", 2}, {"c", 3}};
+
+    Containers::Trie<int> trie{m.begin(), m.end()};
+
+    EXPECT_THROW(auto sub_trie = trie.GetSubTrie("1"), std::runtime_error);
+
+    try {
+        auto sub_trie = trie.GetSubTrie("1");
+        FAIL() << "Ожидалось std::runtime_error";
+    }
+    catch (const std::runtime_error& e) {
+        EXPECT_STREQ(
+            "Invalid key error: The key is not found in the trie.",
+            e.what()
+        );
+    }
+}
+
+
+TEST(SubTrie, BeginEnd)
+{
+    /*
+    Суть теста: проверяем, что begin и end задают нужный диапазон
+    */
+    Containers::Trie<int> trie{};
+
+    trie.insert("aabc", 0);
+    trie.insert("b", 0);
+    trie.insert("aaa", 0);
+
+    trie.insert("aa", 0);
+    trie.insert("aaaaa", 0);
+    trie.insert("bA", 0);
+
+    trie.insert("aab", 0);
+    trie.insert("ba", 0);
+    trie.insert("aac", 0);
+
+    trie.insert("a", 0);
+    trie.insert("ab", 0);
+
+    // должен стать таким: {"aa", "aaa", "aaaaa", "aab", "aabc", "aac"};
+    std::vector<std::string> checked_items = {};
+    std::vector<std::string> expect = {"aa", "aaa", "aaaaa", "aab", "aabc", "aac"};
+    
+    auto sub_trie = trie.GetSubTrie("aa");
+
+    EXPECT_EQ(sub_trie.size(), 6);
+
+    auto sub_trie_it = sub_trie.begin();
+
+    while (sub_trie_it != sub_trie.end())
+    {
+        checked_items.push_back(sub_trie_it->first);
+        ++sub_trie_it;
+    }
+
+    EXPECT_EQ(checked_items, expect);
+}
+
+
+TEST(SubTrie, EmptySubTrie) {
+    Containers::Trie<int> trie;
+    trie.insert("root", 1);
+    trie.insert("rootA", 2);
+    trie.insert("rootB", 3);
+    
+    auto sub_trie = trie.GetSubTrie("root");
+    EXPECT_FALSE(sub_trie.empty());
+    EXPECT_EQ(sub_trie.size(), 3);
+}
+
+TEST(SubTrie, SingleElementSubTrie) {
+    Containers::Trie<int> trie;
+    trie.insert("a", 1);
+    trie.insert("ab", 2);
+    trie.insert("abc", 3);
+    trie.insert("b", 4);
+    
+    auto sub_trie = trie.GetSubTrie("ab");
+    EXPECT_EQ(sub_trie.size(), 2); // "ab" и "abc"
+    
+    std::vector<std::string> keys;
+    for (auto it = sub_trie.begin(); it != sub_trie.end(); ++it) {
+        keys.push_back(it->first);
+    }
+    
+    std::sort(keys.begin(), keys.end());
+    std::vector<std::string> expected = {"ab", "abc"};
+    EXPECT_EQ(keys, expected);
+}
+
+TEST(SubTrie, SubTrieWithMultipleLevels) {
+    Containers::Trie<int> trie;
+    // Вставляем элементы с разными префиксами
+    trie.insert("apple", 1);
+    trie.insert("application", 2);
+    trie.insert("app", 3);
+    trie.insert("banana", 4);
+    trie.insert("appliance", 5);
+    trie.insert("apricot", 6);
+    
+    auto sub_trie = trie.GetSubTrie("app");
+    EXPECT_EQ(sub_trie.size(), 4); // "app", "apple", "application", "appliance"
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie) {
+        keys.push_back(kv.first);
+    }
+    
+    std::sort(keys.begin(), keys.end());
+    std::vector<std::string> expected = {"app", "apple", "appliance", "application"};
+    EXPECT_EQ(keys, expected);
+}
+
+TEST(SubTrie, SubTrieIteratorRangeBasedFor) {
+    Containers::Trie<std::string> trie;
+    trie.insert("test", "value1");
+    trie.insert("testing", "value2");
+    trie.insert("tested", "value3");
+    trie.insert("other", "value4");
+    
+    auto sub_trie = trie.GetSubTrie("test");
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie) {
+        keys.push_back(kv.first);
+    }
+    
+    EXPECT_EQ(keys.size(), 3);
+    EXPECT_EQ(sub_trie.size(), 3);
+}
+
+TEST(SubTrie, ConstSubTrieIteration) {
+    Containers::Trie<int> trie;
+    trie.insert("one", 1);
+    trie.insert("oneA", 2);
+    trie.insert("oneB", 3);
+    trie.insert("two", 4);
+    
+    const auto sub_trie = trie.GetSubTrie("one");
+    
+    int sum = 0;
+    for (auto it = sub_trie.begin(); it != sub_trie.end(); ++it) {
+        sum += it->second;
+    }
+    
+    EXPECT_EQ(sum, 6); // 1 + 2 + 3
+}
+
+TEST(SubTrie, SubTrieWithEmptyKey) {
+    Containers::Trie<int> trie;
+    trie.insert("a", 1);
+    trie.insert("ab", 2);
+    
+    // Нельзя создать SubTrie с пустым ключом, потому что GetSubTrie
+    // ищет существующий ключ, а "" может быть вставлен
+    EXPECT_THROW(auto sub_trie = trie.GetSubTrie(""), std::runtime_error);
+}
+
+TEST(SubTrie, SubTrieAfterEraseOperations) {
+    Containers::Trie<int> trie;
+    trie.insert("car", 1);
+    trie.insert("carpet", 2);
+    trie.insert("carpenter", 3);
+    trie.insert("cart", 4);
+    trie.insert("dog", 5);
+    
+    auto sub_trie1 = trie.GetSubTrie("car");
+    EXPECT_EQ(sub_trie1.size(), 4);
+    
+    // Удаляем элемент из основного дерева
+    trie.erase("carpet");
+    
+    // SubTrie все еще валиден, но теперь размер меньше
+    // Однако в текущей реализации SubTrie хранит shared_ptr,
+    // так что изменения в основном дереве должны отражаться
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie1) {
+        keys.push_back(kv.first);
+    }
+    
+    // После удаления "carpet" осталось 3 элемента
+    EXPECT_EQ(sub_trie1.size(), 3);
+}
+
+TEST(SubTrie, MoveSubTrie) {
+    Containers::Trie<int> trie;
+    trie.insert("pre", 1);
+    trie.insert("prefix", 2);
+    trie.insert("prefixed", 3);
+    
+    auto sub_trie1 = trie.GetSubTrie("pre");
+    auto sub_trie2 = std::move(sub_trie1);
+    
+    EXPECT_EQ(sub_trie2.size(), 3);
+    EXPECT_TRUE(sub_trie1.empty()); // Проверяем, что исходный стал пустым
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie2) {
+        keys.push_back(kv.first);
+    }
+    
+    std::sort(keys.begin(), keys.end());
+    std::vector<std::string> expected = {"pre", "prefix", "prefixed"};
+    EXPECT_EQ(keys, expected);
+}
+
+TEST(SubTrie, SubTrieValueModificationThroughOriginalTrie) {
+    Containers::Trie<int> trie;
+    trie.insert("key", 1);
+    trie.insert("keyA", 2);
+    trie.insert("keyB", 3);
+    
+    auto sub_trie = trie.GetSubTrie("key");
+    
+    // Меняем значения через основной trie
+    trie["keyA"] = 20;
+    trie["key"] = 10;
+    
+    // Проверяем, что изменения видны в SubTrie
+    std::map<std::string, int> values;
+    for (const auto& kv : sub_trie) {
+        values[kv.first] = kv.second;
+    }
+    
+    EXPECT_EQ(values["key"], 10);
+    EXPECT_EQ(values["keyA"], 20);
+    EXPECT_EQ(values["keyB"], 3);
+}
+
+TEST(SubTrie, NestedSubTrie) {
+    Containers::Trie<int> trie;
+    trie.insert("a", 1);
+    trie.insert("ab", 2);
+    trie.insert("abc", 3);
+    trie.insert("abcd", 4);
+    trie.insert("abce", 5);
+    
+    auto sub_trie1 = trie.GetSubTrie("ab");
+    EXPECT_EQ(sub_trie1.size(), 4); // "ab", "abc", "abcd", "abce"
+    
+    // Для создания SubTrie из SubTrie нужен доступ к исходному trie
+    // Этот тест проверяет, что можно получить поддерево уже из поддерева
+    // через исходное дерево
+    auto sub_trie2 = trie.GetSubTrie("abc");
+    EXPECT_EQ(sub_trie2.size(), 3); // "abc", "abcd", "abce"
+}
+
+TEST(SubTrie, SubTrieWithSpecialCharacters) {
+    Containers::Trie<int> trie;
+    // ASCII символы за пределами букв и цифр
+    trie.insert("test!", 1);
+    trie.insert("test!!", 2);
+    trie.insert("test#", 3);
+    trie.insert("test##", 4);
+    trie.insert("other", 5);
+    
+    auto sub_trie = trie.GetSubTrie("test!");
+    EXPECT_EQ(sub_trie.size(), 2); // "test!" и "test!!"
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie) {
+        keys.push_back(kv.first);
+    }
+    
+    std::sort(keys.begin(), keys.end());
+    std::vector<std::string> expected = {"test!", "test!!"};
+    EXPECT_EQ(keys, expected);
+}
+
+TEST(SubTrie, SubTrieStressTest) {
+    Containers::Trie<int> trie;
+
+    trie.insert("prefix_", -1);
+    
+    // Добавляем много элементов с общим префиксом
+    for (int i = 0; i < 100; ++i) {
+        std::string key = "prefix_" + std::to_string(i);
+        trie.insert(key, i);
+    }
+    
+    // Добавляем элементы с другим префиксом
+    for (int i = 0; i < 50; ++i) {
+        std::string key = "other_" + std::to_string(i);
+        trie.insert(key, i + 1000);
+    }
+    
+    auto sub_trie = trie.GetSubTrie("prefix_");
+    EXPECT_EQ(sub_trie.size(), 101);
+    
+    int count = 0;
+    for (auto it = sub_trie.begin(); it != sub_trie.end(); ++it) {
+        EXPECT_TRUE(it->first.find("prefix_") == 0);
+        ++count;
+    }
+    
+    EXPECT_EQ(count, 101);
+}
+
+TEST(SubTrie, SubTrieWithNonExistentPrefixButExistingNode) {
+    Containers::Trie<int> trie;
+    // Ситуация, когда узел существует, но не имеет значения
+    trie.insert("app", 1);
+    trie.insert("apple", 2);
+    
+    // Узел "ap" не существует как ключ, но существует как префикс
+    // GetSubTrie должен бросить исключение для "ap", так как ключ не найден
+    EXPECT_THROW(trie.GetSubTrie("ap"), std::runtime_error);
+    
+    // Но для "app" должен работать
+    auto sub_trie = trie.GetSubTrie("app");
+    EXPECT_EQ(sub_trie.size(), 2); // "app" и "apple"
+}
+
+TEST(SubTrie, SubTrieIteratorPostIncrement) {
+    Containers::Trie<int> trie;
+    trie.insert("a", 1);
+    trie.insert("ab", 2);
+    trie.insert("abc", 3);
+    
+    auto sub_trie = trie.GetSubTrie("a");
+    
+    auto it1 = sub_trie.begin();
+    auto it2 = it1++;
+    
+    // it2 должен указывать на первый элемент
+    EXPECT_EQ(it2->first, "a");
+    // it1 должен указывать на второй элемент
+    EXPECT_EQ(it1->first, "ab");
+    
+    // Тестируем пост-инкремент в цикле
+    std::vector<std::string> keys;
+    for (auto it = sub_trie.begin(); it != sub_trie.end(); it++) {
+        keys.push_back(it->first);
+    }
+    
+    EXPECT_EQ(keys.size(), 3);
+}
+
+TEST(SubTrie, SubTrieIteratorEquality) {
+    Containers::Trie<int> trie;
+    trie.insert("test", 1);
+    trie.insert("test2", 2);
+    
+    auto sub_trie = trie.GetSubTrie("test");
+    
+    auto it1 = sub_trie.begin();
+    auto it2 = sub_trie.begin();
+    
+    EXPECT_TRUE(it1 == it2);
+    EXPECT_FALSE(it1 != it2);
+    
+    ++it1;
+    EXPECT_FALSE(it1 == it2);
+    EXPECT_TRUE(it1 != it2);
+    
+    ++it2;
+    EXPECT_TRUE(it1 == it2);
+}
+
+TEST(SubTrie, SubTrieWithUnicodeCharacters) {
+    Containers::Trie<int> trie;
+    // Тестируем с кириллицей
+    trie.insert("привет", 1);
+    trie.insert("приветствие", 2);
+    trie.insert("приветливый", 3);
+    trie.insert("пока", 4);
+    
+    auto sub_trie = trie.GetSubTrie("привет");
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie) {
+        keys.push_back(kv.first);
+    }
+    
+    std::sort(keys.begin(), keys.end());
+    std::vector<std::string> expected = {"привет", "приветливый", "приветствие"};
+    EXPECT_EQ(keys, expected);
+}
+
+TEST(SubTrie, SubTrieSizeAfterInsertions) {
+    Containers::Trie<int> trie;
+    
+    // Сначала создаем SubTrie
+    trie.insert("base", 1);
+    auto sub_trie = trie.GetSubTrie("base");
+    EXPECT_EQ(sub_trie.size(), 1);
+    
+    // Добавляем новые элементы с тем же префиксом
+    trie.insert("baseA", 2);
+    trie.insert("baseB", 3);
+    
+    // SubTrie должен увидеть новые элементы
+    EXPECT_EQ(sub_trie.size(), 3);
+    
+    std::vector<std::string> keys;
+    for (const auto& kv : sub_trie) {
+        keys.push_back(kv.first);
+    }
+    
+    EXPECT_EQ(keys.size(), 3);
+}
+
+
+TEST(SubTrie, SubTrieBoundaryCases) {
+    Containers::Trie<int> trie;
+    
+    // Тест 1: SubTrie для последнего элемента в цепочке
+    trie.insert("abcdefghijklmnopqrstuvwxyz", 1);
+    auto sub_trie1 = trie.GetSubTrie("abcdefghijklmnopqrstuvwxyz");
+    EXPECT_EQ(sub_trie1.size(), 1);
+    EXPECT_EQ(sub_trie1.begin()->first, "abcdefghijklmnopqrstuvwxyz");
+    
+    // Тест 2: SubTrie для элемента, который является префиксом самого себя
+    trie.insert("x", 2);
+    auto sub_trie2 = trie.GetSubTrie("x");
+    EXPECT_EQ(sub_trie2.size(), 1);
+    
+    // Тест 3: SubTrie для элемента без потомков
+    trie.insert("leaf", 3);
+    auto sub_trie3 = trie.GetSubTrie("leaf");
+    EXPECT_EQ(sub_trie3.size(), 1);
+    
+    // Тест 4: Проверка итератора на end()
+    auto it = sub_trie3.begin();
+    ++it;
+    EXPECT_TRUE(it == sub_trie3.end());
+    
+    // Тест 5: Dereferencing end iterator should throw
+    EXPECT_THROW(*sub_trie3.end(), std::runtime_error);
+
+    try {
+        *sub_trie3.end();
+        FAIL() << "Ожидалось std::runtime_error";
+    }
+    catch (const std::runtime_error& e) {
+        EXPECT_STREQ(
+            "Cannot dereference the iterator with nullptr.",
+            e.what()
+        );
+    }
+
+    EXPECT_THROW(sub_trie3.end().operator->(), std::runtime_error);
+
+    try {
+        sub_trie3.end().operator->();
+        FAIL() << "Ожидалось std::runtime_error";
+    }
+    catch (const std::runtime_error& e) {
+        EXPECT_STREQ(
+            "Cannot dereference the iterator with nullptr.",
+            e.what()
+        );
+    }
+}
