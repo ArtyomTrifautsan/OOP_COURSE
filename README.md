@@ -1,10 +1,15 @@
-# C++/OOP.
-![Contributors](https://img.shields.io/github/contributors/ArtyomTrifautsan/OOP_COURSE?style=plastic)
-![Forks](https://img.shields.io/github/forks/ArtyomTrifautsan/OOP_COURSE)
-![Stars](https://img.shields.io/github/stars/ArtyomTrifautsan/OOP_COURSE)
-![Licence](https://img.shields.io/github/license/ArtyomTrifautsan/OOP_COURSE)
-![Issues](https://img.shields.io/github/issues/ArtyomTrifautsan/OOP_COURSE)
+# Учебные проекты по C++ (OOP & Design Patterns & Algorithms)
 
-### Description
+![C++20](https://img.shields.io/badge/language-C++20-blue.svg)
+![Google Test](https://img.shields.io/badge/testing-GoogleTest-red.svg)
 
-In this repository I have collected 8 tasks that I solved as part of a university course on OOP and design patterns in C++. Each task has its own README.md file, which describes how to run the task and tests for this task. If you want to do this, just download the repository and follow the instructions in the README.md of the selected task.
+Данный репозиторий содержит решения 6 практических задач, выполненных в рамках университетского курса по объектно-ориентированному программированию и паттернам проектирования на C++.
+
+Каждая задача находится в отдельной папке и имеет свой собственный `README.md` с описанием задачи и инструкцией по сборке и запуску.
+
+1.  **Binary Serialization**: Реализация бинарной сериализации/десериализации структур данных STL и пользовательских типов с использованием Concepts и SFINAE.
+2.  **Filter Iterator**: Механизм ленивого прохода по элементам контейнеров (filter iterator), работающий с любыми `ForwardIterator`.
+3.  **Trie (Префиксное дерево)**: Реализация структуры данных Trie с поддержкой итераторов и поддеревьев (SubTrie).
+4.  **Shared Pointer**: Реализация собственного `SharedPTR` с поддержкой управления памятью и кастомных делетеров.
+5.  **Cryptography**: Набор алгоритмов шифрования (TEA, XOR) и режимов работы (CBC, ECB) для шифрования данных.
+6.  **ImageFIFO**: Многопоточная очередь обмена данными (Producer-Consumer) для обработки кадров.
